@@ -1,0 +1,93 @@
+@import "tailwindcss";
+@source "../";
+
+:root {
+  color-scheme: dark;
+  font-family: "Bahnschrift", "Franklin Gothic Medium", "Segoe UI", sans-serif;
+  background: #020203;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background:
+    radial-gradient(circle at top, rgba(220, 38, 38, 0.14), transparent 35%),
+    radial-gradient(circle at bottom right, rgba(59, 130, 246, 0.08), transparent 30%),
+    #020203;
+  color: #f8fafc;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+.storyboard-shell {
+  min-height: 100vh;
+}
+
+.animate-in {
+  animation: enter 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.zoom-in-95 {
+  --enter-scale: 0.95;
+}
+
+.slide-in-from-top-4 {
+  --enter-y: -1rem;
+}
+
+.slide-in-from-top-6 {
+  --enter-y: -1.5rem;
+}
+
+.slide-in-from-bottom-8 {
+  --enter-y: 2rem;
+}
+
+.slide-in-from-bottom-12 {
+  --enter-y: 3rem;
+}
+
+.slide-in-from-left-8 {
+  --enter-x: -2rem;
+}
+
+.slide-in-from-right-8 {
+  --enter-x: 2rem;
+}
+
+.animate-spin-slow {
+  animation: spin 10s linear infinite;
+}
+
+@keyframes enter {
+  from {
+    opacity: 0;
+    transform: translate3d(var(--enter-x, 0), var(--enter-y, 1rem), 0)
+      scale(var(--enter-scale, 1));
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
