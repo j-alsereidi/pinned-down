@@ -29,6 +29,7 @@ export function CountryCombobox({
   getOptionLabel = defaultGetOptionLabel,
   getOptionDescription = defaultGetOptionDescription,
   selectionLabel = null,
+  className = "",
 }) {
   const containerRef = useRef(null);
   const internalInputRef = useRef(null);
@@ -121,7 +122,7 @@ export function CountryCombobox({
   };
 
   return (
-    <div ref={containerRef} className="relative z-30 pointer-events-auto">
+    <div ref={containerRef} className={`relative isolate pointer-events-auto ${isOpen ? "z-[240]" : "z-30"} ${className}`.trim()}>
       <label className="mb-2 block text-[10px] font-mono uppercase tracking-[0.3em] text-white/40">
         {label}
       </label>
@@ -148,7 +149,7 @@ export function CountryCombobox({
 
       {isOpen && (
         <div
-          className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-[80] max-h-64 overflow-y-auto rounded-2xl border border-white/10 bg-[#090b10] p-2 shadow-2xl backdrop-blur-xl"
+          className="absolute left-0 right-0 top-[calc(100%+0.5rem)] z-[260] max-h-64 overflow-y-auto rounded-2xl border border-white/10 bg-[#090b10] p-2 shadow-2xl backdrop-blur-xl"
           onWheel={(event) => event.stopPropagation()}
         >
           {options.length === 0 ? (
@@ -194,3 +195,6 @@ export function CountryCombobox({
 }
 
 export default CountryCombobox;
+
+
+

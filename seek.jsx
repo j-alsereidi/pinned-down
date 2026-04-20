@@ -8,6 +8,7 @@ import {
   Radar,
   ShieldCheck,
   Target,
+  CheckCircle2,
   UserRound,
   ScanEye,
 } from "lucide-react";
@@ -42,8 +43,9 @@ export const SeekingScreen = ({
   currentScore,
   turnNumber,
   inlineError,
+  turnIntroActive,
 }) => {
-  const controlsDisabled = waitingForTurnResolution || localCompleted;
+  const controlsDisabled = turnIntroActive || waitingForTurnResolution || localCompleted;
   const actionDisabled = controlsDisabled || isBusy || !selectedCountry;
   const actionLabel = localCompleted
     ? "TARGET RESOLVED"
@@ -60,6 +62,7 @@ export const SeekingScreen = ({
         center={mapCenter}
         zoom={selectedCountry ? 5 : 2}
         marker={mapMarker}
+        readOnly={turnIntroActive}
         allowCountryPicking
         fullscreen
         onCountryPick={onMapCountryPick}
@@ -219,11 +222,11 @@ export const SeekingScreen = ({
                 type="button"
                 onClick={onSubmitGuess}
                 disabled={actionDisabled}
-                className={`group relative mt-4 flex w-full items-center justify-center overflow-hidden rounded-lg px-6 py-4 font-black transition-all ${actionDisabled ? "cursor-not-allowed border border-white/12 bg-white/6 text-white/38" : "bg-red-600 text-white hover:scale-[1.02] hover:bg-red-500 active:scale-95"}`}
+                className={`group relative mt-4 flex w-full items-center justify-center overflow-hidden rounded-lg px-6 py-4 font-black transition-all ${localCompleted ? "cursor-default border border-emerald-400/45 bg-emerald-500/18 text-emerald-100 shadow-[0_0_32px_-10px_rgba(16,185,129,0.65)]" : actionDisabled ? "cursor-not-allowed border border-white/12 bg-white/6 text-white/38" : "bg-red-600 text-white hover:scale-[1.02] hover:bg-red-500 active:scale-95"}`}
               >
-                <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                {!localCompleted && <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />}
                 <div className="relative z-10 flex items-center gap-2">
-                  {isBusy ? <LoaderCircle size={20} className="animate-spin" /> : <Target size={20} className="opacity-90 group-hover:opacity-100" />}
+                  {localCompleted ? <CheckCircle2 size={20} className="text-emerald-200" /> : isBusy ? <LoaderCircle size={20} className="animate-spin" /> : <Target size={20} className="opacity-90 group-hover:opacity-100" />}
                   <span className="text-xl uppercase italic tracking-tighter">
                     {actionLabel}
                   </span>
@@ -300,4 +303,7 @@ function StatusPill({ label, active }) {
 }
 
 export default SeekingScreen;
+
+
+
 

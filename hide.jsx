@@ -87,7 +87,7 @@ export const HidingScreen = ({
         </div>
 
         <div className="pointer-events-none flex flex-1 items-stretch justify-between gap-6 px-6 pb-8">
-          <div className="pointer-events-auto flex w-full max-w-md flex-col gap-4">
+          <div className="pointer-events-auto relative z-30 flex w-full max-w-md flex-col gap-4">
             <div className="grid grid-cols-1 gap-3 rounded-[1.4rem] border border-white/15 bg-[#0d1117]/82 p-4 shadow-2xl backdrop-blur-xl sm:grid-cols-2">
               <StatusPanel
                 name={localPlayer?.displayName ?? "You"}
@@ -137,7 +137,7 @@ export const HidingScreen = ({
             </div>
           </div>
 
-          <div className="pointer-events-auto hidden w-full max-w-sm flex-col gap-4 lg:flex">
+          <div className="pointer-events-auto relative z-10 hidden w-full max-w-sm flex-col gap-4 lg:flex">
             <div className="overflow-hidden rounded-[1.75rem] border border-red-500/25 bg-[#0d1117]/82 p-4 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] backdrop-blur-2xl">
               <div className="relative h-56 overflow-hidden rounded-2xl bg-slate-800">
                 <img
@@ -238,3 +238,4 @@ function StatusPanel({ name, label, state, highlight = false }) {
 }
 
 export default HidingScreen;
+

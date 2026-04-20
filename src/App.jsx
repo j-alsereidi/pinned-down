@@ -14,6 +14,10 @@ import { usePlaceSearch } from "./game/usePlaceSearch.js";
 import { SettingsModal } from "./components/SettingsModal.jsx";
 import { RankingsModal } from "./components/RankingsModal.jsx";
 
+function createIntroPayload(key, kind, eyebrow, title, footer) {
+  return { key, kind, eyebrow, title, footer };
+}
+
 export default function App() {
   const [profile, setProfile] = useState(getStoredProfile());
   const [draftProfile, setDraftProfile] = useState(getStoredProfile());
@@ -31,9 +35,13 @@ export default function App() {
   const [selectedGuessCountryCode, setSelectedGuessCountryCode] = useState("");
   const [selectionError, setSelectionError] = useState("");
   const [seekInlineError, setSeekInlineError] = useState("");
+  const [stageIntro, setStageIntro] = useState(null);
 
   const hideMapSessionRef = useRef(0);
   const seekMapSessionRef = useRef(0);
+  const introTimeoutRef = useRef(null);
+  const lastHideIntroKeyRef = useRef("");
+  const lastSeekTurnIntroKeyRef = useRef("");
   const game = usePinnedDownGame(profile);
   const room = game.room;
   const lastLobbyCode = room?.code ?? "----";
@@ -79,6 +87,81 @@ export default function App() {
   }, [copied]);
 
   useEffect(() => {
+    return () => {
+      if (introTimeoutRef.current) {
+        window.clearTimeout(introTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!room) {
+      lastHideIntroKeyRef.current = "";
+      lastSeekTurnIntroKeyRef.current = "";
+      setStageIntro(null);
+      return;
+    }
+
+    if (room.phase !== MATCH_PHASES.HIDE) {
+      return;
+    }
+
+    const introKey = `${room.code}:${room.roundNumber}:hide`;
+    if (lastHideIntroKeyRef.current === introKey) {
+      return;
+    }
+
+    lastHideIntroKeyRef.current = introKey;
+    setSelectedGuessCountryCode("");
+    setGuessCountryQuery("");
+    setSeekInlineError("");
+    setSelectionError("");
+    setStageIntro(createIntroPayload(introKey, "hide-phase", "Hide Phase", `ROUND ${room.roundNumber}`, "Conceal Your Position"));
+
+    if (introTimeoutRef.current) {
+      window.clearTimeout(introTimeoutRef.current);
+    }
+
+    introTimeoutRef.current = window.setTimeout(() => {
+      setStageIntro((current) => (current?.key === introKey ? null : current));
+    }, 1550);
+  }, [room?.code, room?.roundNumber, room?.phase]);
+
+  useEffect(() => {
+    if (!room) {
+      return;
+    }
+
+    if (room.phase !== MATCH_PHASES.SEEK || room.currentRound?.status !== "active-turn") {
+      return;
+    }
+
+    const turnNumber = room.currentRound?.turnNumber ?? 1;
+    const introKey = `${room.code}:${room.roundNumber}:seek:${turnNumber}`;
+    if (lastSeekTurnIntroKeyRef.current === introKey) {
+      return;
+    }
+
+    lastSeekTurnIntroKeyRef.current = introKey;
+    setSelectedGuessCountryCode("");
+    setGuessCountryQuery("");
+    setSeekInlineError("");
+    setSelectionError("");
+    seekMapSessionRef.current += 1;
+
+    const footer = turnNumber === 1 ? "First Guess Live" : "Reset and Reacquire";
+    setStageIntro(createIntroPayload(introKey, "seek-turn", "Seek Turn", `ROUND ${turnNumber}`, footer));
+
+    if (introTimeoutRef.current) {
+      window.clearTimeout(introTimeoutRef.current);
+    }
+
+    introTimeoutRef.current = window.setTimeout(() => {
+      setStageIntro((current) => (current?.key === introKey ? null : current));
+    }, 1550);
+  }, [room?.code, room?.roundNumber, room?.phase, room?.currentRound?.status, room?.currentRound?.turnNumber]);
+
+  useEffect(() => {
     if (!room) {
       return;
     }
@@ -97,14 +180,6 @@ export default function App() {
       setHideCountryQuery("");
     }
   }, [room?.roundNumber, room?.phase, room?.currentRound?.localHide?.placeId]);
-
-  useEffect(() => {
-    if (!room || room.phase !== MATCH_PHASES.SEEK) {
-      return;
-    }
-
-    seekMapSessionRef.current += 1;
-  }, [room?.roundNumber, room?.phase]);
 
   const localScore = room?.localPlayer?.id ? room.cumulativeScores?.[room.localPlayer.id] ?? 0 : 0;
   const opponentScore = room?.opponent?.id ? room.cumulativeScores?.[room.opponent.id] ?? 0 : 0;
@@ -343,6 +418,7 @@ export default function App() {
           currentScore={localScore}
           turnNumber={room.currentRound.turnNumber ?? 1}
           inlineError={seekInlineError}
+          turnIntroActive={stageIntro?.kind === "seek-turn"}
         />
       );
     }
@@ -364,6 +440,26 @@ export default function App() {
 
   return (
     <div className="storyboard-shell">
+      {stageIntro && (
+        <div className="pointer-events-none fixed inset-0 z-[95] flex items-center justify-center overflow-hidden">
+          <div className="absolute inset-0 bg-[#020407]/38 backdrop-blur-[3px]" />
+          <div className="absolute h-[42rem] w-[42rem] rounded-full bg-red-500/24 blur-3xl animate-pulse" />
+          <div className="absolute h-[28rem] w-[28rem] rounded-full border-2 border-red-200/40 animate-[ping_1400ms_cubic-bezier(0,0,0.2,1)_1]" />
+          <div className="absolute h-[54rem] w-[54rem] bg-[radial-gradient(circle,rgba(255,255,255,0.18)_0%,rgba(255,255,255,0)_62%)] opacity-90" />
+          <div className="relative text-center text-white drop-shadow-[0_0_36px_rgba(255,255,255,0.32)] animate-[pulse_820ms_ease-in-out_2]">
+            <div className="text-[11px] font-mono font-bold uppercase tracking-[0.75em] text-red-200/92 sm:text-[13px]">
+              {stageIntro.eyebrow}
+            </div>
+            <div className="mt-4 text-6xl font-black uppercase italic tracking-[0.24em] text-white sm:text-8xl lg:text-[10rem]">
+              {stageIntro.title}
+            </div>
+            <div className="mt-4 text-sm font-bold uppercase tracking-[0.55em] text-white/74 sm:text-base">
+              {stageIntro.footer}
+            </div>
+          </div>
+        </div>
+      )}
+
       {statusBanner && (
         <div className="fixed inset-x-0 top-0 z-[70] flex justify-center px-4 py-4">
           <div className="flex w-full max-w-4xl items-center gap-3 rounded-2xl border border-red-500/24 bg-[#0b1118]/88 px-4 py-3 text-sm text-white/84 shadow-2xl backdrop-blur-xl">
