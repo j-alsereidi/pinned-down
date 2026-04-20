@@ -1,127 +1,74 @@
-import { useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  ArrowRight,
-  ChevronDown,
-  ChevronUp,
-  Clapperboard,
-} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Radio } from "lucide-react";
 import { MainMenuScreen } from "../mainmenu.jsx";
 import { HostLobbyScreen } from "../host.jsx";
 import { JoinOperationScreen } from "../join.jsx";
 import { HidingScreen } from "../hide.jsx";
 import { SeekingScreen } from "../seek.jsx";
 import { VictoryScreen } from "../victory.jsx";
-
-const DEFAULT_LOBBY_CODE = "4A9X";
-
-const STORYBOARD_SCREENS = [
-  {
-    id: "menu",
-    label: "Main Menu",
-    note: "Entry point for hosting or joining the prototype.",
-  },
-  {
-    id: "host",
-    label: "Host",
-    note: "Lobby setup and code-sharing screen.",
-  },
-  {
-    id: "join",
-    label: "Join",
-    note: "Code entry and connection screen.",
-  },
-  {
-    id: "hide",
-    label: "Hide",
-    note: "Location selection storyboard frame.",
-  },
-  {
-    id: "seek",
-    label: "Seek",
-    note: "Hunter intel and targeting view.",
-  },
-  {
-    id: "victory",
-    label: "Victory",
-    note: "Match results and replay prompt.",
-  },
-];
-
-const HIDE_OPTIONS = [
-  {
-    country: "Japan",
-    subtitle: "Tokyo, Japan",
-    coordinates: "35.6852 deg N, 139.7100 deg E",
-    distance: "SELECTED",
-    type: "Park / Landmark",
-    difficulty: "Medium",
-    venue: "Shinjuku Gyoen National Garden",
-  },
-  {
-    country: "Jamaica",
-    subtitle: "Kingston, Jamaica",
-    coordinates: "18.0179 deg N, 76.8099 deg W",
-    distance: "11,293 km",
-    type: "Coastal Capital",
-    difficulty: "Hard",
-    venue: "Harbourfront District",
-  },
-  {
-    country: "Jordan",
-    subtitle: "Amman, Jordan",
-    coordinates: "31.9539 deg N, 35.9106 deg E",
-    distance: "8,450 km",
-    type: "Historic City",
-    difficulty: "Medium",
-    venue: "Citadel Overlook",
-  },
-  {
-    country: "Azerbaijan",
-    subtitle: "Baku, Azerbaijan",
-    coordinates: "40.4093 deg N, 49.8671 deg E",
-    distance: "7,120 km",
-    type: "Urban Coastline",
-    difficulty: "Hard",
-    venue: "Old City District",
-  },
-];
-
-const SEEK_OPTIONS = [
-  "Japan",
-  "South Korea",
-  "China",
-  "Thailand",
-  "Australia",
-];
+import { MATCH_PHASES, PLAYER_ROLES } from "../shared/constants.js";
+import { getMatchHistory, getStoredProfile, saveProfile } from "./game/storage.js";
+import { usePinnedDownGame } from "./game/usePinnedDownGame.js";
+import { fetchCountries, filterCountries, getCountryByCode } from "./game/countries.js";
+import { usePlaceSearch } from "./game/usePlaceSearch.js";
+import { SettingsModal } from "./components/SettingsModal.jsx";
+import { RankingsModal } from "./components/RankingsModal.jsx";
 
 export default function App() {
-  const [currentScreen, setCurrentScreen] = useState("menu");
+  const [profile, setProfile] = useState(getStoredProfile());
+  const [draftProfile, setDraftProfile] = useState(getStoredProfile());
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [rankingsOpen, setRankingsOpen] = useState(false);
+  const [history, setHistory] = useState(getMatchHistory());
   const [copied, setCopied] = useState(false);
-  const [joinCode, setJoinCode] = useState(DEFAULT_LOBBY_CODE);
-  const [hideQuery, setHideQuery] = useState("Ja");
-  const [selectedHideCountry, setSelectedHideCountry] = useState("Japan");
-  const [selectedSeekCountry, setSelectedSeekCountry] = useState("Japan");
-  const [isNavMinimized, setIsNavMinimized] = useState(false);
+  const [countries, setCountries] = useState([]);
+  const [countriesError, setCountriesError] = useState("");
+  const [hideCountryQuery, setHideCountryQuery] = useState("");
+  const [selectedHideCountryCode, setSelectedHideCountryCode] = useState("");
+  const [hidePlaceQuery, setHidePlaceQuery] = useState("");
+  const [selectedPlace, setSelectedPlace] = useState(null);
+  const [guessCountryQuery, setGuessCountryQuery] = useState("");
+  const [selectedGuessCountryCode, setSelectedGuessCountryCode] = useState("");
+  const [selectionError, setSelectionError] = useState("");
 
-  const activeScreenIndex = STORYBOARD_SCREENS.findIndex(
-    (screen) => screen.id === currentScreen,
-  );
-  const activeScreen = STORYBOARD_SCREENS[activeScreenIndex];
-  const filteredHideOptions = HIDE_OPTIONS.filter((option) =>
-    option.country.toLowerCase().includes(hideQuery.trim().toLowerCase()),
-  );
-  const selectedHideOption =
-    HIDE_OPTIONS.find((option) => option.country === selectedHideCountry) ??
-    HIDE_OPTIONS[0];
+  const game = usePinnedDownGame(profile);
+  const room = game.room;
+  const lastLobbyCode = room?.code ?? "----";
+  const selectedHideCountry = getCountryByCode(countries, selectedHideCountryCode);
+  const selectedGuessCountry = getCountryByCode(countries, selectedGuessCountryCode);
+  const hideCountryOptions = filterCountries(countries, hideCountryQuery);
+  const guessCountryOptions = filterCountries(countries, guessCountryQuery);
+  const placeSearch = usePlaceSearch(selectedHideCountry, hidePlaceQuery);
+  const localReady = game.localReady;
+  const opponentReady = game.opponentReady;
+  const hiddenLocationLocked = Boolean(room?.currentRound?.hiddenLocation);
+  const hideReadyStage = room?.phase === MATCH_PHASES.HIDE && hiddenLocationLocked;
 
-  const goTo = (screenId) => setCurrentScreen(screenId);
+  useEffect(() => {
+    let cancelled = false;
 
-  const goRelative = (direction) => {
-    const totalScreens = STORYBOARD_SCREENS.length;
-    const nextIndex = (activeScreenIndex + direction + totalScreens) % totalScreens;
-    setCurrentScreen(STORYBOARD_SCREENS[nextIndex].id);
-  };
+    fetchCountries()
+      .then((payload) => {
+        if (cancelled) {
+          return;
+        }
+
+        setCountries(payload);
+      })
+      .catch((error) => {
+        if (!cancelled) {
+          setCountriesError(error.message || "Could not load the online country list.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    setHistory(getMatchHistory());
+  }, [rankingsOpen, room?.phase, game.lastEvent]);
 
   useEffect(() => {
     if (!copied) {
@@ -133,202 +80,297 @@ export default function App() {
   }, [copied]);
 
   useEffect(() => {
-    const handleKeyDown = (event) => {
-      const tagName = event.target?.tagName;
-      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT") {
-        return;
-      }
+    if (!room) {
+      return;
+    }
 
-      if (event.key === "ArrowRight") {
-        goRelative(1);
-      }
+    if (room.phase === MATCH_PHASES.HIDE && game.localRole === PLAYER_ROLES.HIDER && !room.currentRound.hiddenLocation) {
+      setSelectedPlace(null);
+      setHidePlaceQuery("");
+      setSelectionError("");
+    }
 
-      if (event.key === "ArrowLeft") {
-        goRelative(-1);
-      }
-    };
+    if (room.currentRound.hiddenLocation) {
+      setSelectedPlace(room.currentRound.hiddenLocation);
+      setHidePlaceQuery(room.currentRound.hiddenLocation.name ?? room.currentRound.hiddenLocation.formattedAddress ?? "");
+      setSelectedHideCountryCode(room.currentRound.hiddenLocation.countryCode ?? "");
+      setHideCountryQuery("");
+    }
+  }, [room?.roundNumber, room?.phase, room?.currentRound?.hiddenLocation?.placeId, game.localRole]);
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [activeScreenIndex]);
+  const seekerScore = room?.localPlayer?.id ? room.cumulativeScores?.[room.localPlayer.id] ?? 0 : 0;
+  const opponentScore = room?.opponent?.id ? room.cumulativeScores?.[room.opponent.id] ?? 0 : 0;
+  const statusBanner = selectionError || game.errorMessage || countriesError || (game.isWaitingForOpponent ? room?.statusMessage : "");
+
+  const handleSaveProfile = () => {
+    saveProfile(draftProfile);
+    setProfile(draftProfile);
+    setSettingsOpen(false);
+  };
 
   const handleCopyCode = async () => {
+    if (!room?.code) {
+      return;
+    }
+
     try {
-      await navigator.clipboard.writeText(DEFAULT_LOBBY_CODE);
+      await navigator.clipboard.writeText(room.code);
       setCopied(true);
     } catch {
       setCopied(false);
     }
   };
 
-  const handleJoinCodeChange = (value) => {
-    setJoinCode(value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4));
+  const handleSelectHideCountry = (country) => {
+    setSelectedHideCountryCode(country.code);
+    setHideCountryQuery("");
+    setSelectedPlace(null);
+    setHidePlaceQuery("");
+    setSelectionError("");
   };
 
-  const handleHideQueryChange = (value) => {
-    setHideQuery(value);
-    const matchingOption = HIDE_OPTIONS.find((option) =>
-      option.country.toLowerCase().startsWith(value.trim().toLowerCase()),
-    );
+  const handleSelectGuessCountry = (country) => {
+    setSelectedGuessCountryCode(country.code);
+    setGuessCountryQuery("");
+    setSelectionError("");
+  };
 
-    if (matchingOption) {
-      setSelectedHideCountry(matchingOption.country);
+  const handleApplyPickedPlace = (place) => {
+    if (!place) {
+      setSelectionError("Clicked Google place did not include enough location data.");
+      return;
+    }
+
+    setSelectedHideCountryCode(place.countryCode);
+    setHideCountryQuery("");
+    setSelectedPlace(place);
+    setHidePlaceQuery(place.name ?? place.formattedAddress ?? "");
+    setSelectionError("");
+  };
+
+  const handlePlacePredictionSelect = async (prediction) => {
+    try {
+      const place = await placeSearch.selectPrediction(prediction);
+      if (!place) {
+        setSelectionError("Selected Google place did not match the chosen country.");
+        return;
+      }
+
+      handleApplyPickedPlace(place);
+    } catch (error) {
+      setSelectionError(error.message || "Could not resolve the selected Google place.");
     }
   };
 
-  const handleSelectHideCountry = (country) => {
-    setSelectedHideCountry(country);
-    setHideQuery(country);
+  const handleMapPlacePick = (place) => {
+    handleApplyPickedPlace(place);
+  };
+
+  const handleConfirmHideLocation = () => {
+    if (!selectedPlace) {
+      setSelectionError("Pick a Google place before locking the hiding location.");
+      return;
+    }
+
+    setSelectionError("");
+    game.lockLocation(selectedPlace);
+  };
+
+  const handleSubmitGuess = () => {
+    if (!selectedGuessCountry) {
+      setSelectionError("Choose a country before submitting a guess.");
+      return;
+    }
+
+    setSelectionError("");
+    game.submitGuess(selectedGuessCountry.code);
+  };
+
+  const hideMapCenter = selectedPlace
+    ? { lat: selectedPlace.lat, lng: selectedPlace.lng }
+    : selectedHideCountry
+      ? { lat: selectedHideCountry.lat, lng: selectedHideCountry.lng }
+      : { lat: 20, lng: 0 };
+  const seekMapCenter = selectedGuessCountry
+    ? { lat: selectedGuessCountry.lat, lng: selectedGuessCountry.lng }
+    : { lat: 20, lng: 0 };
+  const hideMapMarker = selectedPlace
+    ? { position: { lat: selectedPlace.lat, lng: selectedPlace.lng }, title: selectedPlace.name }
+    : selectedHideCountry
+      ? { position: { lat: selectedHideCountry.lat, lng: selectedHideCountry.lng }, title: selectedHideCountry.name }
+      : null;
+  const seekMapMarker = selectedGuessCountry
+    ? { position: { lat: selectedGuessCountry.lat, lng: selectedGuessCountry.lng }, title: selectedGuessCountry.name }
+    : null;
+
+  const result = room?.result ?? null;
+  const memoizedHistory = useMemo(() => history, [history]);
+
+  const renderScreen = () => {
+    if (!room) {
+      if (game.entryView === "join") {
+        return (
+          <JoinOperationScreen
+            codeInput={game.joinCodeDraft}
+            onBack={() => game.setEntryView("menu")}
+            onCodeChange={(value) => game.setJoinCodeDraft(value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4))}
+            onConnect={game.joinRoom}
+            errorMessage={game.errorMessage}
+            isBusy={game.isBusy}
+          />
+        );
+      }
+
+      return (
+        <MainMenuScreen
+          activeLobbyCode={lastLobbyCode}
+          playerName={profile.displayName}
+          connectionState={game.connectionState}
+          onHost={game.createRoom}
+          onJoin={() => game.setEntryView("join")}
+          onOpenSettings={() => {
+            setDraftProfile(profile);
+            setSettingsOpen(true);
+          }}
+          onOpenRankings={() => setRankingsOpen(true)}
+        />
+      );
+    }
+
+    if (room.phase === MATCH_PHASES.LOBBY) {
+      return (
+        <HostLobbyScreen
+          copied={copied}
+          lobbyCode={room.code}
+          localPlayer={room.localPlayer}
+          opponent={room.opponent}
+          currentRound={room.currentRound}
+          statusMessage={room.statusMessage}
+          roundNumber={room.roundNumber}
+          localRole={game.localRole}
+          localReady={localReady}
+          opponentReady={opponentReady}
+          canReady={game.canSignalReady}
+          isBusy={game.isBusy}
+          onBack={game.disconnect}
+          onCopyCode={handleCopyCode}
+          onReady={game.signalReady}
+        />
+      );
+    }
+
+    if (room.phase === MATCH_PHASES.HIDE || (room.phase === MATCH_PHASES.SEEK && game.localRole === PLAYER_ROLES.HIDER)) {
+      return (
+        <HidingScreen
+          localPlayer={room.localPlayer}
+          opponent={room.opponent}
+          currentRound={room.currentRound}
+          localReady={localReady}
+          opponentReady={opponentReady}
+          countryQuery={hideCountryQuery}
+          selectedCountry={selectedHideCountry}
+          countryOptions={hideCountryOptions}
+          placeQuery={hidePlaceQuery}
+          selectedPlace={selectedPlace}
+          placePredictions={placeSearch.predictions}
+          placeSearchBusy={placeSearch.loading}
+          placeSearchError={placeSearch.error}
+          mapCenter={hideMapCenter}
+          mapMarker={hideMapMarker}
+          mapSensitivity={profile.panZoomSensitivity}
+          isLocked={hiddenLocationLocked}
+          isBusy={game.isBusy}
+          statusMessage={room.statusMessage}
+          guessHistory={room.currentRound.guesses ?? []}
+          waitingForReady={hideReadyStage}
+          canReady={hideReadyStage && game.canSignalReady}
+          onBack={game.disconnect}
+          onCountryQueryChange={setHideCountryQuery}
+          onSelectCountry={handleSelectHideCountry}
+          onPlaceQueryChange={setHidePlaceQuery}
+          onSelectPrediction={handlePlacePredictionSelect}
+          onMapPlacePick={handleMapPlacePick}
+          onConfirm={handleConfirmHideLocation}
+          onReady={game.signalReady}
+        />
+      );
+    }
+
+    if (room.phase === MATCH_PHASES.SEEK || room.phase === MATCH_PHASES.HIDE) {
+      return (
+        <SeekingScreen
+          localPlayer={room.localPlayer}
+          opponent={room.opponent}
+          currentRound={room.currentRound}
+          localReady={localReady}
+          opponentReady={opponentReady}
+          countryQuery={guessCountryQuery}
+          selectedCountry={selectedGuessCountry}
+          countryOptions={guessCountryOptions}
+          onBack={game.disconnect}
+          onCountryQueryChange={setGuessCountryQuery}
+          onSelectCountry={handleSelectGuessCountry}
+          onSubmitGuess={handleSubmitGuess}
+          onReady={game.signalReady}
+          mapCenter={seekMapCenter}
+          mapMarker={seekMapMarker}
+          mapSensitivity={profile.panZoomSensitivity}
+          revealedHints={room.currentRound.revealedHints ?? []}
+          totalHintCount={4}
+          guessHistory={room.currentRound.guesses ?? []}
+          waitingForLocation={game.isWaitingForHide}
+          waitingForReady={hideReadyStage}
+          canReady={hideReadyStage && game.canSignalReady}
+          isBusy={game.isBusy}
+          statusMessage={room.statusMessage}
+          currentScore={seekerScore}
+          turnNumber={room.currentRound.turnNumber ?? 1}
+        />
+      );
+    }
+
+    return (
+      <VictoryScreen
+        localPlayer={room.localPlayer}
+        opponent={room.opponent}
+        localScore={seekerScore}
+        opponentScore={opponentScore}
+        result={result}
+        onDisconnect={game.disconnect}
+        onRematch={game.voteRematch}
+        rematchPending={Boolean(room.rematchVotes?.includes(room.localPlayer?.id))}
+        isBusy={game.isBusy}
+      />
+    );
   };
 
   return (
     <div className="storyboard-shell">
-      <div className="fixed inset-x-0 top-0 z-50 px-4 py-4 sm:px-6">
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 rounded-[1.75rem] border border-white/10 bg-black/75 px-4 py-4 shadow-2xl backdrop-blur-2xl sm:px-6 transition-all duration-300">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-3">
-              <div className="flex h-11 w-11 items-center justify-center rounded-2xl border border-red-500/30 bg-red-600/10 text-red-400">
-                <Clapperboard size={20} />
-              </div>
-              <div>
-                <div className="text-[10px] font-bold uppercase tracking-[0.3em] text-red-400">
-                  Pinned Down
-                </div>
-                <div className="text-sm font-semibold text-white/70">
-                  Clickable storyboard build
-                </div>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 self-start sm:self-auto">
-              <div className="flex items-center gap-2 text-xs text-white/50">
-                <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 uppercase tracking-[0.25em]">
-                  {activeScreen.label}
-                </span>
-                {!isNavMinimized && (
-                  <span className="hidden sm:inline">{activeScreen.note}</span>
-                )}
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsNavMinimized((value) => !value)}
-                className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-white/70 transition hover:bg-white/10 hover:text-white"
-              >
-                {isNavMinimized ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                {isNavMinimized ? "Expand" : "Minimize"}
-              </button>
-            </div>
+      {statusBanner && (
+        <div className="fixed inset-x-0 top-0 z-[70] flex justify-center px-4 py-4">
+          <div className="flex w-full max-w-4xl items-center gap-3 rounded-2xl border border-red-500/24 bg-[#0b1118]/88 px-4 py-3 text-sm text-white/84 shadow-2xl backdrop-blur-xl">
+            {selectionError || game.errorMessage || countriesError ? <AlertTriangle size={16} className="text-red-300" /> : <Radio size={16} className="text-emerald-300" />}
+            <span>{statusBanner}</span>
           </div>
-
-          {!isNavMinimized && (
-            <>
-              <div className="flex flex-wrap gap-2">
-                {STORYBOARD_SCREENS.map((screen, index) => (
-                  <button
-                    key={screen.id}
-                    type="button"
-                    onClick={() => goTo(screen.id)}
-                    className={`rounded-full border px-4 py-2 text-sm font-semibold transition ${
-                      screen.id === currentScreen
-                        ? "border-red-500/60 bg-red-600 text-white shadow-[0_0_25px_-10px_rgba(220,38,38,0.9)]"
-                        : "border-white/10 bg-white/5 text-white/60 hover:border-white/20 hover:bg-white/10 hover:text-white"
-                    }`}
-                  >
-                    <span className="mr-2 text-[10px] uppercase tracking-[0.3em] text-white/40">
-                      {String(index + 1).padStart(2, "0")}
-                    </span>
-                    {screen.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => goRelative(-1)}
-                  className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
-                >
-                  <ArrowLeft size={16} />
-                  Previous
-                </button>
-
-                <div className="text-center text-[10px] uppercase tracking-[0.3em] text-white/30">
-                  Use the rail or arrow keys to move through the flow
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => goRelative(1)}
-                  className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/70 transition hover:bg-white/10 hover:text-white"
-                >
-                  Next
-                  <ArrowRight size={16} />
-                </button>
-              </div>
-            </>
-          )}
         </div>
-      </div>
+      )}
 
-      <div className={isNavMinimized ? "pt-[6.75rem] sm:pt-[6.25rem]" : "pt-[14.5rem] sm:pt-[13rem]"}>
-        {currentScreen === "menu" && (
-          <MainMenuScreen
-            activeLobbyCode={DEFAULT_LOBBY_CODE}
-            onHost={() => goTo("host")}
-            onJoin={() => goTo("join")}
-          />
-        )}
+      {renderScreen()}
 
-        {currentScreen === "host" && (
-          <HostLobbyScreen
-            copied={copied}
-            lobbyCode={DEFAULT_LOBBY_CODE}
-            onBack={() => goTo("menu")}
-            onCopyCode={handleCopyCode}
-            onGoHide={() => goTo("hide")}
-            onGoJoin={() => goTo("join")}
-          />
-        )}
+      <SettingsModal
+        open={settingsOpen}
+        draft={draftProfile}
+        onChange={setDraftProfile}
+        onClose={() => setSettingsOpen(false)}
+        onSave={handleSaveProfile}
+      />
 
-        {currentScreen === "join" && (
-          <JoinOperationScreen
-            codeInput={joinCode}
-            lobbyCode={DEFAULT_LOBBY_CODE}
-            onBack={() => goTo("menu")}
-            onCodeChange={handleJoinCodeChange}
-            onConnect={() => goTo("seek")}
-          />
-        )}
-
-        {currentScreen === "hide" && (
-          <HidingScreen
-            options={filteredHideOptions.length > 0 ? filteredHideOptions : HIDE_OPTIONS}
-            searchValue={hideQuery}
-            selectedLocation={selectedHideOption}
-            onBack={() => goTo("host")}
-            onContinue={() => goTo("seek")}
-            onSearchChange={handleHideQueryChange}
-            onSelectLocation={handleSelectHideCountry}
-          />
-        )}
-
-        {currentScreen === "seek" && (
-          <SeekingScreen
-            guessOptions={SEEK_OPTIONS}
-            selectedCountry={selectedSeekCountry}
-            onBack={() => goTo("hide")}
-            onContinue={() => goTo("victory")}
-            onSelectCountry={setSelectedSeekCountry}
-          />
-        )}
-
-        {currentScreen === "victory" && (
-          <VictoryScreen
-            onDisconnect={() => goTo("menu")}
-            onRematch={() => goTo("menu")}
-          />
-        )}
-      </div>
+      <RankingsModal
+        open={rankingsOpen}
+        history={memoizedHistory}
+        onClose={() => setRankingsOpen(false)}
+      />
     </div>
   );
 }
+

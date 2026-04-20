@@ -1,95 +1,93 @@
 import React from "react";
 import {
+  Copy,
+  Radar,
   Radio,
   ShieldAlert,
-  Wifi,
-  Copy,
-  UserCheck,
-  Radar,
-  X,
-  Activity,
-  Zap,
   Swords,
+  UserCheck,
+  Wifi,
+  X,
+  Zap,
 } from "lucide-react";
 
 export const HostLobbyScreen = ({
   copied,
   lobbyCode,
+  localPlayer,
+  opponent,
+  currentRound,
+  statusMessage,
+  roundNumber,
+  localRole,
+  localReady,
+  opponentReady,
+  canReady,
+  isBusy,
   onBack,
   onCopyCode,
-  onGoHide,
-  onGoJoin,
+  onReady,
 }) => {
+  const opponentRole = opponent ? getAssignedRole(currentRound, opponent.id) : null;
+
   return (
-    <div className="min-h-screen w-full bg-[#050507] text-slate-50 flex flex-col relative overflow-hidden font-sans selection:bg-red-500/30">
-      <div className="absolute inset-0 z-0 bg-black flex items-center justify-center pointer-events-none">
+    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#050507] font-sans text-slate-50 selection:bg-red-500/30">
+      <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center bg-black">
         <img
-          src="https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg"
+          src="/assets/world-map.svg"
           alt="World Map"
-          className="absolute inset-0 w-full h-full object-cover opacity-[0.05] invert grayscale contrast-150 scale-125 translate-y-8"
+          className="absolute inset-0 h-full w-full translate-y-8 scale-125 object-cover opacity-[0.09] contrast-150"
         />
-
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] border border-white/5 rounded-full" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] border border-red-500/10 rounded-full border-dashed animate-[spin_40s_linear_infinite]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-white/5 rounded-full" />
-        <div
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] border border-red-600/20 rounded-full animate-ping shadow-[0_0_50px_rgba(220,38,38,0.2)]"
-          style={{ animationDuration: "3s" }}
-        />
-
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-red-600/10 blur-[120px] rounded-full" />
-
-        <div className="absolute inset-0 bg-[repeating-linear-gradient(transparent_0px,transparent_2px,rgba(0,0,0,0.3)_2px,rgba(0,0,0,0.3)_4px)] opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90" />
       </div>
 
-      <div className="relative z-10 w-full p-6 flex items-start justify-between animate-in fade-in slide-in-from-top-4 duration-500">
+      <div className="relative z-10 flex w-full items-start justify-between p-6">
         <div className="flex items-center gap-4">
           <button
             type="button"
             onClick={onBack}
-            className="p-2 bg-black/40 border border-white/10 rounded-lg hover:bg-red-900/40 hover:text-red-400 transition-colors backdrop-blur-md group"
+            className="group rounded-lg border border-white/10 bg-black/40 p-2 backdrop-blur-md transition-colors hover:bg-red-900/40 hover:text-red-400"
           >
-            <X size={20} className="group-hover:rotate-90 transition-transform" />
+            <X size={20} className="transition-transform group-hover:rotate-90" />
           </button>
           <div>
-            <div className="text-[10px] text-red-500 font-bold tracking-[0.2em] uppercase">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-400">
               Deployment Setup
             </div>
-            <h1 className="text-xl font-black italic tracking-tight uppercase">
-              Host Operation
+            <h1 className="text-xl font-black uppercase italic tracking-tight">
+              Mission Lobby
             </h1>
           </div>
         </div>
 
         <div className="flex flex-col items-end gap-1 text-right">
-          <div className="text-[10px] text-white/40 font-mono tracking-widest uppercase">
-            Network Status
+          <div className="text-[10px] font-mono uppercase tracking-widest text-white/45">
+            Round Status
           </div>
-          <div className="flex items-center gap-2 mt-1">
-            <Radio size={14} className="text-green-500 animate-pulse" />
-            <span className="text-[10px] text-green-500 font-bold tracking-wide uppercase">
-              Connection Stable
+          <div className="mt-1 flex items-center gap-2">
+            <Radio size={14} className="animate-pulse text-green-400" />
+            <span className="text-[10px] font-bold uppercase tracking-wide text-green-400">
+              Round {roundNumber}
             </span>
           </div>
         </div>
       </div>
 
-      <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-center px-4 animate-in fade-in zoom-in-95 duration-1000 delay-100">
-        <div className="w-full max-w-4xl flex flex-col items-center relative">
-          <div className="flex flex-col items-center mb-16 relative">
-            <div className="absolute -inset-20 bg-red-600/10 blur-[80px] rounded-full pointer-events-none" />
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4">
+        <div className="relative flex w-full max-w-4xl flex-col items-center">
+          <div className="relative mb-16 flex flex-col items-center">
+            <div className="pointer-events-none absolute -inset-20 rounded-full bg-red-600/10 blur-[80px]" />
 
-            <div className="flex items-center gap-2 px-4 py-1.5 bg-red-950/40 border border-red-500/30 rounded-full mb-6 backdrop-blur-md">
-              <Zap size={12} className="text-red-500" />
-              <span className="text-[10px] font-bold tracking-[0.3em] uppercase text-red-400">
+            <div className="mb-6 flex items-center gap-2 rounded-full border border-red-500/30 bg-red-950/40 px-4 py-1.5 backdrop-blur-md">
+              <Zap size={12} className="text-red-400" />
+              <span className="text-[10px] font-bold uppercase tracking-[0.3em] text-red-300">
                 Secure Link Established
               </span>
-              <Zap size={12} className="text-red-500" />
+              <Zap size={12} className="text-red-400" />
             </div>
 
-            <h2 className="text-[10px] font-mono text-white/50 tracking-widest uppercase mb-4">
-              Provide this cipher to your rival
+            <h2 className="mb-4 text-[10px] font-mono uppercase tracking-widest text-white/55">
+              Share this room code with your rival
             </h2>
 
             <div className="flex items-center gap-6">
@@ -97,10 +95,10 @@ export const HostLobbyScreen = ({
                 {lobbyCode.split("").map((char, index) => (
                   <div
                     key={index}
-                    className="w-20 h-28 bg-black/60 backdrop-blur-xl border-2 border-red-500/50 rounded-xl flex items-center justify-center shadow-[0_0_30px_rgba(220,38,38,0.2)] relative overflow-hidden group"
+                    className="relative flex h-28 w-20 items-center justify-center overflow-hidden rounded-xl border-2 border-red-500/50 bg-black/60 shadow-[0_0_30px_rgba(220,38,38,0.2)]"
                   >
-                    <div className="absolute inset-0 bg-gradient-to-b from-red-500/10 to-transparent opacity-50 group-hover:opacity-100 transition-opacity" />
-                    <span className="text-7xl font-black font-mono text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)] relative z-10">
+                    <div className="absolute inset-0 bg-gradient-to-b from-red-500/10 to-transparent opacity-50" />
+                    <span className="relative z-10 font-mono text-7xl font-black text-white drop-shadow-[0_0_15px_rgba(255,255,255,0.8)]">
                       {char}
                     </span>
                   </div>
@@ -110,133 +108,169 @@ export const HostLobbyScreen = ({
               <button
                 type="button"
                 onClick={onCopyCode}
-                className="h-28 px-6 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 group"
+                className="group flex h-28 flex-col items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/5 px-6 transition-all hover:scale-105 hover:bg-white/10 active:scale-95"
               >
-                <Copy size={24} className="text-white/50 group-hover:text-white" />
-                <span className="text-[9px] font-mono text-white/50 uppercase tracking-widest">
+                <Copy size={24} className="text-white/60 group-hover:text-white" />
+                <span className="text-[9px] font-mono uppercase tracking-widest text-white/55">
                   {copied ? "Copied" : "Copy"}
                 </span>
               </button>
             </div>
           </div>
 
-          <div className="w-full grid grid-cols-[1fr_auto_1fr] gap-8 items-center bg-black/40 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-10 shadow-2xl relative overflow-hidden">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1 bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
+          <div className="relative grid w-full grid-cols-[1fr_auto_1fr] items-center gap-8 overflow-hidden rounded-[2rem] border border-white/10 bg-black/40 p-10 shadow-2xl backdrop-blur-2xl">
+            <div className="absolute left-1/2 top-0 h-1 w-1/2 -translate-x-1/2 bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
 
-            <div className="flex items-center gap-6 bg-white/5 border border-white/10 p-6 rounded-2xl relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1 h-full bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.5)]" />
-
-              <div className="w-16 h-16 bg-black/50 border border-white/20 rounded-xl flex items-center justify-center shrink-0">
-                <UserCheck size={32} className="text-white" />
-              </div>
-
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2 mb-1">
-                  <Activity size={12} className="text-green-500" />
-                  <span className="text-[10px] font-mono text-green-500 tracking-widest uppercase">
-                    System Ready
-                  </span>
-                </div>
-                <h3 className="text-2xl font-black uppercase tracking-tight text-white">
-                  Agent_Zero
-                </h3>
-                <span className="text-[10px] text-white/30 font-mono mt-1">
-                  HOST // LOCAL_NODE
-                </span>
-              </div>
-            </div>
+            <PlayerCard
+              accent="green"
+              icon={<UserCheck size={32} className="text-white" />}
+              title={localPlayer?.displayName}
+              subtitle={`YOU // ${getRoleLabel(localRole)}`}
+              onlineLabel="Linked Agent"
+              ready={localReady}
+            />
 
             <div className="flex flex-col items-center justify-center px-4">
-              <div className="bg-black border border-white/10 p-4 rounded-full shadow-2xl relative">
-                <div className="absolute inset-0 bg-red-600/20 rounded-full animate-ping" />
-                <Swords size={24} className="text-white/50 relative z-10" />
+              <div className="relative rounded-full border border-white/10 bg-black p-4 shadow-2xl">
+                <div className="absolute inset-0 animate-ping rounded-full bg-red-600/20" />
+                <Swords size={24} className="relative z-10 text-white/55" />
               </div>
             </div>
 
-            <div className="flex items-center gap-6 bg-red-950/20 border border-red-500/20 p-6 rounded-2xl relative overflow-hidden group">
-              <div className="absolute top-0 left-0 w-full h-1 bg-red-500/50 shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-[scan_2s_linear_infinite]" />
-
-              <div className="w-16 h-16 bg-black/50 border border-red-500/30 rounded-xl flex items-center justify-center shrink-0 relative overflow-hidden">
-                <Radar size={32} className="text-red-500 animate-spin-slow" />
-              </div>
-
-              <div className="flex flex-col">
-                <div className="flex items-center gap-2 mb-1">
-                  <Wifi size={12} className="text-red-500 animate-pulse" />
-                  <span className="text-[10px] font-mono text-red-500 tracking-widest uppercase animate-pulse">
-                    Awaiting Signal
-                  </span>
-                </div>
-                <h3 className="text-2xl font-black uppercase tracking-tight text-white/30 italic">
-                  ...
-                </h3>
-                <span className="text-[10px] text-white/20 font-mono mt-1">
-                  SCANNING_FREQUENCIES...
-                </span>
-              </div>
-            </div>
+            <PlayerCard
+              accent="red"
+              icon={<Radar size={32} className="animate-spin-slow text-red-400" />}
+              title={opponent?.displayName ?? "..."}
+              subtitle={opponent ? `REMOTE // ${getRoleLabel(opponentRole)}` : "SCANNING_FREQUENCIES..."}
+              onlineLabel={opponent ? (opponent.connected ? "Opponent Linked" : "Reconnect Pending") : "Awaiting Signal"}
+              ready={opponentReady}
+              connected={Boolean(opponent?.connected)}
+              dimmed={!opponent}
+            />
           </div>
 
-          <div className="w-full max-w-2xl mt-8 flex flex-col items-center">
-            <div className="text-[10px] font-mono text-white/30 tracking-widest flex flex-col items-center gap-1 opacity-60">
-              <span>[SYSTEM] Initializing secure P2P handshake protocol... OK</span>
-              <span>[SYSTEM] Generating local terrain coordinates... OK</span>
-              <span className="text-red-400 animate-pulse">
-                [NETWORK] Listening for incoming connection on port 8492-AX...
+          <div className="mt-6 grid w-full max-w-3xl grid-cols-1 gap-3 rounded-[1.5rem] border border-white/10 bg-[#0b1118]/78 p-4 shadow-2xl backdrop-blur-xl sm:grid-cols-2">
+            <ReadyBadge
+              label={`${localPlayer?.displayName ?? "You"} status`}
+              role={getRoleLabel(localRole)}
+              ready={localReady}
+            />
+            <ReadyBadge
+              label={`${opponent?.displayName ?? "Opponent"} status`}
+              role={getRoleLabel(opponentRole)}
+              ready={opponentReady}
+              pending={!opponent}
+            />
+          </div>
+
+          <div className="mt-8 flex w-full max-w-2xl flex-col items-center">
+            <div className="flex flex-col items-center gap-1 text-[10px] font-mono tracking-widest text-white/40 opacity-90">
+              <span>{statusMessage}</span>
+              <span>
+                Current assignment: {localRole === "hider" ? "you secure coordinates" : "you intercept the signal"}
               </span>
+              {!opponent && <span className="text-red-300">[NETWORK] Listening for incoming connection...</span>}
             </div>
 
             <div className="mt-6 flex w-full flex-col gap-3 sm:flex-row">
               <button
                 type="button"
-                onClick={onGoJoin}
-                className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-bold uppercase tracking-[0.2em] text-white/70 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+                onClick={onBack}
+                className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-bold uppercase tracking-[0.2em] text-white/75 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
               >
-                Preview Join Screen
+                Disconnect
               </button>
               <button
                 type="button"
-                onClick={onGoHide}
-                className="flex-1 rounded-2xl bg-red-600 px-5 py-4 text-sm font-black uppercase tracking-[0.2em] text-white transition hover:bg-red-500"
+                onClick={onReady}
+                disabled={!canReady || isBusy}
+                className={`flex-1 rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.2em] transition ${canReady && !isBusy ? "bg-red-600 text-white hover:bg-red-500" : "cursor-not-allowed border border-white/10 bg-white/5 text-white/35"}`}
               >
-                Stage Hide Flow
+                {localReady ? "Ready Locked" : canReady ? (isBusy ? "Syncing..." : "Ready Up") : opponent ? "Waiting On Rival" : "Awaiting Rival"}
               </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="absolute bottom-8 left-8 flex items-center gap-2 text-[10px] text-white/20 font-mono uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded border border-white/5 animate-in fade-in duration-1000 delay-500">
-        <ShieldAlert size={12} className="text-yellow-500" />
-        Visibility: Open to Local Network
+      <div className="absolute bottom-8 left-8 flex items-center gap-2 rounded border border-white/5 bg-white/5 px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest text-white/25">
+        <ShieldAlert size={12} className="text-yellow-400" />
+        Visibility: Local Room Sync
       </div>
-
-      <div className="absolute bottom-8 right-8 text-right">
-        <div className="text-[10px] font-mono text-white/20 leading-none mb-1">
-          LOBBY_UPTIME
-        </div>
-        <div className="text-sm font-black font-mono text-white/40 leading-none animate-pulse">
-          00:01:42
-        </div>
-      </div>
-
-      <style jsx>{`
-        @keyframes scan {
-          0% {
-            transform: translateY(0);
-            opacity: 1;
-          }
-          50% {
-            opacity: 0.5;
-          }
-          100% {
-            transform: translateY(100px);
-            opacity: 0;
-          }
-        }
-      `}</style>
     </div>
   );
 };
 
+function PlayerCard({ accent, icon, title, subtitle, onlineLabel, ready, connected = true, dimmed = false }) {
+  const accentClass = accent === "green"
+    ? "border-green-500/35 bg-emerald-950/18"
+    : "border-red-500/25 bg-red-950/22";
+  const barClass = accent === "green"
+    ? "bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.5)]"
+    : "bg-red-500 shadow-[0_0_15px_rgba(220,38,38,0.6)]";
+
+  return (
+    <div className={`relative flex items-center gap-6 overflow-hidden rounded-2xl border p-6 ${accentClass} ${dimmed ? "opacity-75" : ""}`}>
+      <div className={`absolute left-0 top-0 h-full w-1 ${barClass}`} />
+      <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-white/20 bg-black/45">
+        {icon}
+      </div>
+      <div className="flex flex-col">
+        <div className="mb-1 flex items-center gap-2">
+          <Wifi size={12} className={connected ? "text-green-400" : "animate-pulse text-red-400"} />
+          <span className={`text-[10px] font-mono uppercase tracking-widest ${connected ? "text-green-400" : "animate-pulse text-red-400"}`}>
+            {onlineLabel}
+          </span>
+        </div>
+        <h3 className={`text-2xl font-black uppercase tracking-tight ${dimmed ? "text-white/40 italic" : "text-white"}`}>
+          {title}
+        </h3>
+        <span className="mt-1 text-[10px] font-mono text-white/35">
+          {subtitle}
+        </span>
+        <span className={`mt-2 inline-flex w-fit rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.2em] ${ready ? "border-emerald-400/40 bg-emerald-400/15 text-emerald-300" : "border-white/12 bg-white/6 text-white/55"}`}>
+          {ready ? "Ready" : "Waiting"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ReadyBadge({ label, role, ready, pending = false }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+      <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-white/45">{label}</div>
+      <div className="mt-2 flex items-center justify-between gap-3">
+        <span className="text-sm font-bold uppercase tracking-[0.18em] text-white/82">
+          {pending ? "Awaiting Join" : role}
+        </span>
+        <span className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.2em] ${ready ? "border-emerald-400/40 bg-emerald-400/15 text-emerald-300" : "border-white/12 bg-white/6 text-white/58"}`}>
+          {ready ? "Ready" : "Waiting"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function getAssignedRole(currentRound, playerId) {
+  if (!playerId) {
+    return null;
+  }
+
+  if (currentRound?.hiderId === playerId) {
+    return "hider";
+  }
+
+  if (currentRound?.seekerId === playerId) {
+    return "seeker";
+  }
+
+  return null;
+}
+
+function getRoleLabel(role) {
+  return role ? role.toUpperCase() : "UNKNOWN";
+}
+
 export default HostLobbyScreen;
+

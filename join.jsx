@@ -8,89 +8,81 @@ import {
   Key,
   Wifi,
   Cpu,
+  LoaderCircle,
 } from "lucide-react";
 
 export const JoinOperationScreen = ({
   codeInput,
-  lobbyCode,
   onBack,
   onCodeChange,
   onConnect,
+  errorMessage,
+  isBusy,
 }) => {
   const codeSlots = Array.from({ length: 4 }, (_, index) => codeInput[index] ?? "");
   const progress = Math.min(codeInput.length * 25, 100);
 
   return (
-    <div className="min-h-screen w-full bg-[#050507] text-slate-50 flex flex-col relative overflow-hidden font-sans selection:bg-red-500/30">
-      <div className="absolute inset-0 z-0 bg-black flex items-center justify-center pointer-events-none">
+    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#050507] font-sans text-slate-50 selection:bg-red-500/30">
+      <div className="absolute inset-0 z-0 flex items-center justify-center bg-black pointer-events-none">
         <img
-          src="https://upload.wikimedia.org/wikipedia/commons/8/80/World_map_-_low_resolution.svg"
+          src="/assets/world-map.svg"
           alt="World Map"
-          className="absolute inset-0 w-full h-full object-cover opacity-[0.05] invert grayscale contrast-150 scale-125"
+          className="absolute inset-0 h-full w-full scale-125 object-cover opacity-[0.08] contrast-150"
         />
-
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-white/5 rounded-full" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-red-500/10 rounded-full border-dashed animate-[spin_40s_linear_infinite]" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] border border-white/5 rounded-full" />
-
-        <div className="absolute top-[20%] right-[20%] w-[400px] h-[400px] bg-red-600/10 blur-[100px] rounded-full" />
-        <div className="absolute bottom-[20%] left-[20%] w-[500px] h-[500px] bg-blue-600/5 blur-[120px] rounded-full" />
-
-        <div className="absolute inset-0 bg-[repeating-linear-gradient(transparent_0px,transparent_2px,rgba(0,0,0,0.3)_2px,rgba(0,0,0,0.3)_4px)] opacity-50" />
         <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90" />
       </div>
 
-      <div className="relative z-10 w-full p-6 flex items-start justify-between animate-in fade-in slide-in-from-top-4 duration-500">
+      <div className="relative z-10 flex w-full items-start justify-between p-6">
         <div className="flex items-center gap-4">
           <button
             type="button"
             onClick={onBack}
-            className="p-2 bg-black/40 border border-white/10 rounded-lg hover:bg-white/10 transition-colors backdrop-blur-md group"
+            className="group rounded-lg border border-white/10 bg-black/40 p-2 backdrop-blur-md transition-colors hover:bg-white/10"
           >
-            <ChevronLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
+            <ChevronLeft size={20} className="transition-transform group-hover:-translate-x-0.5" />
           </button>
           <div>
-            <div className="text-[10px] text-red-500 font-bold tracking-[0.2em] uppercase">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-500">
               Deployment Setup
             </div>
-            <h1 className="text-xl font-black italic tracking-tight uppercase">
+            <h1 className="text-xl font-black uppercase italic tracking-tight">
               Join Operation
             </h1>
           </div>
         </div>
 
         <div className="flex flex-col items-end gap-1 text-right">
-          <div className="text-[10px] text-white/40 font-mono tracking-widest uppercase">
+          <div className="text-[10px] font-mono uppercase tracking-widest text-white/40">
             Network Status
           </div>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="mt-1 flex items-center gap-2">
             <Wifi size={14} className="text-green-500" />
-            <span className="text-[10px] text-green-500 font-bold tracking-wide uppercase">
-              Connection Stable
+            <span className="text-[10px] font-bold uppercase tracking-wide text-green-500">
+              Ready to Connect
             </span>
           </div>
         </div>
       </div>
 
-      <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-center px-4 animate-in fade-in zoom-in-95 duration-1000 delay-100">
-        <div className="w-full max-w-3xl bg-black/60 backdrop-blur-2xl border border-white/10 rounded-[2rem] p-8 md:p-12 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)] relative overflow-hidden">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3/4 h-px bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
-          <div className="absolute -top-32 -left-32 w-64 h-64 bg-red-600/20 blur-[80px] rounded-full pointer-events-none" />
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4">
+        <div className="relative w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-black/60 p-8 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)] backdrop-blur-2xl md:p-12">
+          <div className="absolute top-0 left-1/2 h-px w-3/4 -translate-x-1/2 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
 
-          <div className="flex flex-col items-center text-center mb-10">
-            <div className="w-16 h-16 bg-red-600/10 border border-red-500/30 rounded-2xl flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(220,38,38,0.15)] relative">
-              <Key size={32} className="text-red-500 absolute" />
-              <Scan size={48} className="text-red-500/30 absolute animate-[spin_10s_linear_infinite]" />
+          <div className="mb-10 flex flex-col items-center text-center">
+            <div className="relative mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/30 bg-red-600/10 shadow-[0_0_30px_rgba(220,38,38,0.15)]">
+              <Key size={32} className="absolute text-red-500" />
+              <Scan size={48} className="absolute animate-[spin_10s_linear_infinite] text-red-500/30" />
             </div>
-            <h2 className="text-3xl md:text-4xl font-black tracking-tight uppercase italic mb-2">
+            <h2 className="mb-2 text-3xl font-black uppercase italic tracking-tight md:text-4xl">
               Input Code
             </h2>
-            <p className="text-sm text-white/50 font-mono tracking-widest uppercase">
+            <p className="text-sm font-mono uppercase tracking-widest text-white/50">
               Ask host for a 4-digit lobby code
             </p>
           </div>
 
-          <div className="flex justify-center gap-3 md:gap-6 mb-12">
+          <div className="mb-12 flex justify-center gap-3 md:gap-6">
             {codeSlots.map((char, index) => {
               const isFilled = Boolean(char);
               const isActive = index === codeInput.length && codeInput.length < 4;
@@ -99,28 +91,16 @@ export const JoinOperationScreen = ({
                 <div
                   key={index}
                   className={`relative flex h-20 w-16 items-center justify-center overflow-hidden rounded-xl border-2 shadow-[0_0_25px_rgba(220,38,38,0.2)] md:h-28 md:w-24 ${
-                    isFilled
-                      ? "bg-red-600/10 border-red-500"
-                      : "bg-white/5 border-white/20"
+                    isFilled ? "border-red-500 bg-red-600/10" : "border-white/20 bg-white/5"
                   } ${isActive ? "scale-105 border-white" : ""}`}
                 >
-                  <div
-                    className={`absolute inset-0 ${
-                      isFilled
-                        ? "bg-gradient-to-b from-red-500/20 to-transparent opacity-40"
-                        : "bg-white/5"
-                    }`}
-                  />
+                  <div className={`absolute inset-0 ${isFilled ? "bg-gradient-to-b from-red-500/20 to-transparent opacity-40" : "bg-white/5"}`} />
                   {isFilled ? (
-                    <span className="relative z-10 text-4xl font-black font-mono text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] md:text-6xl">
+                    <span className="relative z-10 font-mono text-4xl font-black text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.5)] md:text-6xl">
                       {char}
                     </span>
                   ) : (
-                    <div
-                      className={`relative z-10 h-1.5 w-6 bg-white ${
-                        isActive ? "animate-pulse" : "opacity-20"
-                      } md:w-10`}
-                    />
+                    <div className={`relative z-10 h-1.5 w-6 bg-white md:w-10 ${isActive ? "animate-pulse" : "opacity-20"}`} />
                   )}
                 </div>
               );
@@ -134,31 +114,32 @@ export const JoinOperationScreen = ({
             <input
               value={codeInput}
               onChange={(event) => onCodeChange(event.target.value)}
-              placeholder={lobbyCode}
+              placeholder="4A9X"
               maxLength={4}
               className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-center text-lg font-black uppercase tracking-[0.5em] text-white outline-none transition focus:border-red-500/50 focus:bg-black"
             />
             <div className="mt-3 text-center text-[10px] font-mono uppercase tracking-[0.3em] text-white/30">
-              Demo lobby code: {lobbyCode}
+              Enter the live room code to connect
             </div>
+            {errorMessage && (
+              <div className="mt-3 rounded-xl border border-red-500/20 bg-red-950/30 px-3 py-2 text-center text-xs text-red-300">
+                {errorMessage}
+              </div>
+            )}
           </div>
 
-          <div className="w-full max-w-md mx-auto mb-10">
-            <div className="flex justify-between items-end mb-2">
-              <div className="flex items-center gap-2 text-[10px] font-mono text-white/50 uppercase tracking-widest">
+          <div className="mx-auto mb-10 w-full max-w-md">
+            <div className="mb-2 flex items-end justify-between">
+              <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-widest text-white/50">
                 <Cpu size={12} className="text-red-400" />
                 Decryption Progress
               </div>
-              <span className="text-xs font-bold text-red-500 font-mono">{progress}%</span>
+              <span className="font-mono text-xs font-bold text-red-500">{progress}%</span>
             </div>
-
-            <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden">
-              <div
-                className="h-full bg-red-600 transition-all duration-500"
-                style={{ width: `${progress}%` }}
-              />
+            <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+              <div className="h-full bg-red-600 transition-all duration-500" style={{ width: `${progress}%` }} />
             </div>
-            <div className="text-center mt-3 text-[9px] font-mono text-white/30 tracking-[0.2em] uppercase animate-pulse">
+            <div className="mt-3 text-center text-[9px] font-mono uppercase tracking-[0.2em] text-white/30">
               Validating Signatures [{codeInput.length}/4]
             </div>
           </div>
@@ -167,35 +148,34 @@ export const JoinOperationScreen = ({
             <button
               type="button"
               onClick={onConnect}
-              disabled={codeInput.length !== 4}
-              className={`group relative flex w-full max-w-sm items-center justify-center gap-3 overflow-hidden rounded-xl py-4 px-8 font-black ${
-                codeInput.length === 4
+              disabled={codeInput.length !== 4 || isBusy}
+              className={`group relative flex w-full max-w-sm items-center justify-center gap-3 overflow-hidden rounded-xl px-8 py-4 font-black ${
+                codeInput.length === 4 && !isBusy
                   ? "bg-red-600 text-white transition hover:bg-red-500"
                   : "cursor-not-allowed border border-white/10 bg-white/5 text-white/40"
               }`}
             >
-              <div className="absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.02)_10px,rgba(255,255,255,0.02)_20px)] pointer-events-none" />
-
-              <Lock size={18} className={codeInput.length === 4 ? "text-white" : "text-white/30"} />
-              <span className="text-lg tracking-widest uppercase italic font-mono">
-                Connect
+              <div className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(45deg,transparent,transparent_10px,rgba(255,255,255,0.02)_10px,rgba(255,255,255,0.02)_20px)]" />
+              {isBusy ? <LoaderCircle size={18} className="animate-spin" /> : <Lock size={18} className={codeInput.length === 4 ? "text-white" : "text-white/30"} />}
+              <span className="text-lg font-mono uppercase italic tracking-widest">
+                {isBusy ? "Connecting" : "Connect"}
               </span>
             </button>
           </div>
         </div>
       </div>
 
-      <div className="absolute bottom-8 left-8 flex items-center gap-3 animate-in fade-in duration-1000 delay-500">
+      <div className="absolute bottom-8 left-8 flex items-center gap-3">
         <Radio size={16} className="text-white/30" />
         <div className="flex flex-col">
-          <span className="text-[9px] text-white/30 font-mono uppercase tracking-widest">
+          <span className="text-[9px] font-mono uppercase tracking-widest text-white/30">
             Local Port
           </span>
-          <span className="text-xs text-white/50 font-mono font-bold">8492-AX</span>
+          <span className="text-xs font-mono font-bold text-white/50">8787</span>
         </div>
       </div>
 
-      <div className="absolute bottom-8 right-8 flex items-center gap-2 text-[10px] text-white/20 font-mono uppercase tracking-widest bg-white/5 px-3 py-1.5 rounded border border-white/5 animate-in fade-in duration-1000 delay-500">
+      <div className="absolute bottom-8 right-8 flex items-center gap-2 rounded border border-white/5 bg-white/5 px-3 py-1.5 text-[10px] font-mono uppercase tracking-widest text-white/20">
         <ShieldAlert size={12} className="text-red-500" />
         Secure Protocol V2
       </div>
