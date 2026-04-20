@@ -6,14 +6,12 @@ import { WebSocket, WebSocketServer } from "ws";
 import { ERROR_CODES, createErrorPayload } from "../shared/contracts.js";
 import { MATCH_PHASES, MESSAGE_TYPES, RECONNECT_TIMEOUT_MS } from "../shared/constants.js";
 import {
-  advanceToSeekPhase,
   createPlayer,
   createRoomState,
   generateRoomCode,
   getPublicRoomState,
   joinRoomState,
   lockHiddenLocation,
-  registerPlayerReady,
   registerRematchVote,
   startRound,
   submitGuess,
@@ -101,6 +99,23 @@ function roomHasConnectedPlayers(room) {
   return Object.values(room.players).some((player) => player.connected);
 }
 
+function buildLobbyRound(playerIds) {
+  return {
+    hides: Object.fromEntries(playerIds.map((playerId) => [playerId, null])),
+    playerStates: Object.fromEntries(playerIds.map((playerId) => [playerId, {
+      guesses: [],
+      pendingGuess: null,
+      completed: false,
+      foundOnTurn: null,
+      totalGuessTimeMs: 0,
+      bestDistanceKm: null,
+    }])),
+    turnNumber: 1,
+    turnStartedAt: null,
+    status: playerIds.length === 2 ? "ready" : "awaiting-opponent",
+  };
+}
+
 function broadcastRoom(room, type = MESSAGE_TYPES.ROOM_UPDATE, extra = {}) {
   for (const player of Object.values(room.players)) {
     const socket = socketSessions.get(player.id);
@@ -177,16 +192,9 @@ function leaveRoom(room, playerId) {
     return;
   }
 
+  const activePlayerIds = [room.hostPlayerId, room.guestPlayerId].filter(Boolean);
   room.phase = MATCH_PHASES.LOBBY;
-  room.currentRound.hiddenLocation = null;
-  room.currentRound.guesses = [];
-  room.currentRound.seekerId = room.guestPlayerId;
-  room.currentRound.hiderId = room.hostPlayerId;
-  room.currentRound.turnNumber = 1;
-  room.currentRound.readyByPlayer = Object.fromEntries(
-    [room.hostPlayerId, room.guestPlayerId].filter(Boolean).map((id) => [id, false]),
-  );
-  room.currentRound.status = "awaiting-opponent";
+  room.currentRound = buildLobbyRound(activePlayerIds);
   room.result = null;
   room.rematchVotes = [];
   room.statusMessage = `${player.displayName} left the room.`;
@@ -260,36 +268,13 @@ function handlePlayerReady(socket) {
   }
 
   const { room, playerId } = context;
-
-  if (room.phase === MATCH_PHASES.LOBBY) {
-    if (!room.guestPlayerId) {
-      sendJson(socket, createErrorPayload(ERROR_CODES.INVALID_ACTION, "Both players must be linked before readying up."));
-      return;
-    }
-
-    const outcome = registerPlayerReady(room, playerId);
-    if (outcome.allReady) {
-      startRound(room);
-    }
-    broadcastRoom(room);
+  if (room.phase !== MATCH_PHASES.LOBBY || playerId !== room.hostPlayerId || !room.guestPlayerId) {
+    sendJson(socket, createErrorPayload(ERROR_CODES.INVALID_ACTION, "Only the host can start once both players are connected."));
     return;
   }
 
-  if (room.phase === MATCH_PHASES.HIDE) {
-    if (!room.currentRound.hiddenLocation) {
-      sendJson(socket, createErrorPayload(ERROR_CODES.INVALID_ACTION, "The hider must lock a location before players can ready up."));
-      return;
-    }
-
-    const outcome = registerPlayerReady(room, playerId);
-    if (outcome.allReady) {
-      advanceToSeekPhase(room);
-    }
-    broadcastRoom(room);
-    return;
-  }
-
-  sendJson(socket, createErrorPayload(ERROR_CODES.INVALID_ACTION, "Ready-up is only available in the lobby or after the hide is locked."));
+  startRound(room);
+  broadcastRoom(room);
 }
 
 async function handleHideLock(socket, payload) {
@@ -299,12 +284,12 @@ async function handleHideLock(socket, payload) {
   }
 
   const { room, playerId } = context;
-  if (room.phase !== MATCH_PHASES.HIDE || playerId !== room.currentRound.hiderId) {
-    sendJson(socket, createErrorPayload(ERROR_CODES.INVALID_ACTION, "Only the active hider can lock a location."));
+  if (room.phase !== MATCH_PHASES.HIDE) {
+    sendJson(socket, createErrorPayload(ERROR_CODES.INVALID_ACTION, "Players can only lock hides during the hide phase."));
     return;
   }
 
-  const location = lockHiddenLocation(room, payload.hiddenLocation, await getCountryLookup());
+  const location = lockHiddenLocation(room, playerId, payload.hiddenLocation, await getCountryLookup());
   if (!location) {
     sendJson(socket, createErrorPayload(ERROR_CODES.INVALID_ACTION, "Invalid Google place selection."));
     return;
@@ -320,14 +305,14 @@ async function handleGuessSubmit(socket, payload) {
   }
 
   const { room, playerId } = context;
-  if (room.phase !== MATCH_PHASES.SEEK || playerId !== room.currentRound.seekerId) {
-    sendJson(socket, createErrorPayload(ERROR_CODES.INVALID_ACTION, "Only the seeker can submit a country guess right now."));
+  if (room.phase !== MATCH_PHASES.SEEK) {
+    sendJson(socket, createErrorPayload(ERROR_CODES.INVALID_ACTION, "Country guesses are only available during the seek phase."));
     return;
   }
 
-  const guessResult = submitGuess(room, payload.countryCode, await getCountryLookup());
+  const guessResult = submitGuess(room, playerId, payload.countryCode, await getCountryLookup());
   if (!guessResult) {
-    sendJson(socket, createErrorPayload(ERROR_CODES.INVALID_ACTION, "Unknown country guess."));
+    sendJson(socket, createErrorPayload(ERROR_CODES.INVALID_ACTION, "Guess could not be recorded right now."));
     return;
   }
 

@@ -65,6 +65,7 @@ export function usePlaceSearch(selectedCountry, query) {
             results.slice(0, 8).map((prediction) => ({
               id: prediction.place_id,
               placeId: prediction.place_id,
+              name: prediction.structured_formatting?.main_text ?? prediction.description,
               primaryText: prediction.structured_formatting?.main_text ?? prediction.description,
               secondaryText: prediction.structured_formatting?.secondary_text ?? "",
               description: prediction.description,
@@ -96,6 +97,7 @@ export function usePlaceSearch(selectedCountry, query) {
             "photos",
             "types",
             "address_components",
+            "user_ratings_total",
           ],
           sessionToken: sessionTokenRef.current,
         },

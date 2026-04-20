@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, Radio } from "lucide-react";
 import { MainMenuScreen } from "../mainmenu.jsx";
 import { HostLobbyScreen } from "../host.jsx";
@@ -6,7 +6,7 @@ import { JoinOperationScreen } from "../join.jsx";
 import { HidingScreen } from "../hide.jsx";
 import { SeekingScreen } from "../seek.jsx";
 import { VictoryScreen } from "../victory.jsx";
-import { MATCH_PHASES, PLAYER_ROLES } from "../shared/constants.js";
+import { MATCH_PHASES } from "../shared/constants.js";
 import { getMatchHistory, getStoredProfile, saveProfile } from "./game/storage.js";
 import { usePinnedDownGame } from "./game/usePinnedDownGame.js";
 import { fetchCountries, filterCountries, getCountryByCode } from "./game/countries.js";
@@ -30,7 +30,10 @@ export default function App() {
   const [guessCountryQuery, setGuessCountryQuery] = useState("");
   const [selectedGuessCountryCode, setSelectedGuessCountryCode] = useState("");
   const [selectionError, setSelectionError] = useState("");
+  const [seekInlineError, setSeekInlineError] = useState("");
 
+  const hideMapSessionRef = useRef(0);
+  const seekMapSessionRef = useRef(0);
   const game = usePinnedDownGame(profile);
   const room = game.room;
   const lastLobbyCode = room?.code ?? "----";
@@ -39,10 +42,6 @@ export default function App() {
   const hideCountryOptions = filterCountries(countries, hideCountryQuery);
   const guessCountryOptions = filterCountries(countries, guessCountryQuery);
   const placeSearch = usePlaceSearch(selectedHideCountry, hidePlaceQuery);
-  const localReady = game.localReady;
-  const opponentReady = game.opponentReady;
-  const hiddenLocationLocked = Boolean(room?.currentRound?.hiddenLocation);
-  const hideReadyStage = room?.phase === MATCH_PHASES.HIDE && hiddenLocationLocked;
 
   useEffect(() => {
     let cancelled = false;
@@ -84,21 +83,30 @@ export default function App() {
       return;
     }
 
-    if (room.phase === MATCH_PHASES.HIDE && game.localRole === PLAYER_ROLES.HIDER && !room.currentRound.hiddenLocation) {
+    if (room.phase === MATCH_PHASES.HIDE && !room.currentRound.localHide) {
       setSelectedPlace(null);
       setHidePlaceQuery("");
       setSelectionError("");
+      hideMapSessionRef.current += 1;
     }
 
-    if (room.currentRound.hiddenLocation) {
-      setSelectedPlace(room.currentRound.hiddenLocation);
-      setHidePlaceQuery(room.currentRound.hiddenLocation.name ?? room.currentRound.hiddenLocation.formattedAddress ?? "");
-      setSelectedHideCountryCode(room.currentRound.hiddenLocation.countryCode ?? "");
+    if (room.currentRound.localHide) {
+      setSelectedPlace(room.currentRound.localHide);
+      setHidePlaceQuery(room.currentRound.localHide.name ?? room.currentRound.localHide.formattedAddress ?? "");
+      setSelectedHideCountryCode(room.currentRound.localHide.countryCode ?? "");
       setHideCountryQuery("");
     }
-  }, [room?.roundNumber, room?.phase, room?.currentRound?.hiddenLocation?.placeId, game.localRole]);
+  }, [room?.roundNumber, room?.phase, room?.currentRound?.localHide?.placeId]);
 
-  const seekerScore = room?.localPlayer?.id ? room.cumulativeScores?.[room.localPlayer.id] ?? 0 : 0;
+  useEffect(() => {
+    if (!room || room.phase !== MATCH_PHASES.SEEK) {
+      return;
+    }
+
+    seekMapSessionRef.current += 1;
+  }, [room?.roundNumber, room?.phase]);
+
+  const localScore = room?.localPlayer?.id ? room.cumulativeScores?.[room.localPlayer.id] ?? 0 : 0;
   const opponentScore = room?.opponent?.id ? room.cumulativeScores?.[room.opponent.id] ?? 0 : 0;
   const statusBanner = selectionError || game.errorMessage || countriesError || (game.isWaitingForOpponent ? room?.statusMessage : "");
 
@@ -133,6 +141,7 @@ export default function App() {
     setSelectedGuessCountryCode(country.code);
     setGuessCountryQuery("");
     setSelectionError("");
+    setSeekInlineError("");
   };
 
   const handleApplyPickedPlace = (place) => {
@@ -166,6 +175,19 @@ export default function App() {
     handleApplyPickedPlace(place);
   };
 
+  const handleSeekMapCountryPick = (countryCode) => {
+    const country = getCountryByCode(countries, countryCode);
+    if (!country) {
+      setSeekInlineError("That map click did not match a loaded country.");
+      return;
+    }
+
+    setSelectedGuessCountryCode(country.code);
+    setGuessCountryQuery("");
+    setSeekInlineError("");
+    setSelectionError("");
+  };
+
   const handleConfirmHideLocation = () => {
     if (!selectedPlace) {
       setSelectionError("Pick a Google place before locking the hiding location.");
@@ -178,11 +200,12 @@ export default function App() {
 
   const handleSubmitGuess = () => {
     if (!selectedGuessCountry) {
-      setSelectionError("Choose a country before submitting a guess.");
+      setSeekInlineError("Choose a country before submitting a guess.");
       return;
     }
 
     setSelectionError("");
+    setSeekInlineError("");
     game.submitGuess(selectedGuessCountry.code);
   };
 
@@ -244,29 +267,22 @@ export default function App() {
           lobbyCode={room.code}
           localPlayer={room.localPlayer}
           opponent={room.opponent}
-          currentRound={room.currentRound}
           statusMessage={room.statusMessage}
           roundNumber={room.roundNumber}
-          localRole={game.localRole}
-          localReady={localReady}
-          opponentReady={opponentReady}
-          canReady={game.canSignalReady}
+          canStart={game.canStartRound}
           isBusy={game.isBusy}
           onBack={game.disconnect}
           onCopyCode={handleCopyCode}
-          onReady={game.signalReady}
+          onStartRound={game.startRound}
         />
       );
     }
 
-    if (room.phase === MATCH_PHASES.HIDE || (room.phase === MATCH_PHASES.SEEK && game.localRole === PLAYER_ROLES.HIDER)) {
+    if (room.phase === MATCH_PHASES.HIDE) {
       return (
         <HidingScreen
           localPlayer={room.localPlayer}
           opponent={room.opponent}
-          currentRound={room.currentRound}
-          localReady={localReady}
-          opponentReady={opponentReady}
           countryQuery={hideCountryQuery}
           selectedCountry={selectedHideCountry}
           countryOptions={hideCountryOptions}
@@ -277,54 +293,56 @@ export default function App() {
           placeSearchError={placeSearch.error}
           mapCenter={hideMapCenter}
           mapMarker={hideMapMarker}
-          mapSensitivity={profile.panZoomSensitivity}
-          isLocked={hiddenLocationLocked}
+          mapSessionKey={hideMapSessionRef.current}
+          isLocked={game.localHideLocked}
           isBusy={game.isBusy}
           statusMessage={room.statusMessage}
-          guessHistory={room.currentRound.guesses ?? []}
-          waitingForReady={hideReadyStage}
-          canReady={hideReadyStage && game.canSignalReady}
+          opponentHideLocked={game.opponentHideLocked}
           onBack={game.disconnect}
           onCountryQueryChange={setHideCountryQuery}
           onSelectCountry={handleSelectHideCountry}
           onPlaceQueryChange={setHidePlaceQuery}
           onSelectPrediction={handlePlacePredictionSelect}
           onMapPlacePick={handleMapPlacePick}
+          onMapError={setSelectionError}
           onConfirm={handleConfirmHideLocation}
-          onReady={game.signalReady}
         />
       );
     }
 
-    if (room.phase === MATCH_PHASES.SEEK || room.phase === MATCH_PHASES.HIDE) {
+    if (room.phase === MATCH_PHASES.SEEK) {
       return (
         <SeekingScreen
           localPlayer={room.localPlayer}
           opponent={room.opponent}
-          currentRound={room.currentRound}
-          localReady={localReady}
-          opponentReady={opponentReady}
           countryQuery={guessCountryQuery}
           selectedCountry={selectedGuessCountry}
           countryOptions={guessCountryOptions}
           onBack={game.disconnect}
-          onCountryQueryChange={setGuessCountryQuery}
+          onCountryQueryChange={(value) => {
+            setGuessCountryQuery(value);
+            setSeekInlineError("");
+          }}
           onSelectCountry={handleSelectGuessCountry}
           onSubmitGuess={handleSubmitGuess}
-          onReady={game.signalReady}
+          onMapCountryPick={handleSeekMapCountryPick}
+          onMapError={setSeekInlineError}
           mapCenter={seekMapCenter}
           mapMarker={seekMapMarker}
-          mapSensitivity={profile.panZoomSensitivity}
-          revealedHints={room.currentRound.revealedHints ?? []}
-          totalHintCount={4}
-          guessHistory={room.currentRound.guesses ?? []}
-          waitingForLocation={game.isWaitingForHide}
-          waitingForReady={hideReadyStage}
-          canReady={hideReadyStage && game.canSignalReady}
+          mapSessionKey={seekMapSessionRef.current}
+          revealedHintImages={room.currentRound.revealedHintImages ?? []}
+          totalHintCount={room.currentRound.totalHintCount ?? 4}
+          guessHistory={room.currentRound.localGuesses ?? []}
+          waitingForTurnResolution={game.isWaitingForTurnResolution}
+          localSubmittedGuess={game.localSubmittedGuess}
+          opponentSubmittedGuess={game.opponentSubmittedGuess}
+          localCompleted={game.localCompleted}
+          opponentCompleted={game.opponentCompleted}
           isBusy={game.isBusy}
           statusMessage={room.statusMessage}
-          currentScore={seekerScore}
+          currentScore={localScore}
           turnNumber={room.currentRound.turnNumber ?? 1}
+          inlineError={seekInlineError}
         />
       );
     }
@@ -333,7 +351,7 @@ export default function App() {
       <VictoryScreen
         localPlayer={room.localPlayer}
         opponent={room.opponent}
-        localScore={seekerScore}
+        localScore={localScore}
         opponentScore={opponentScore}
         result={result}
         onDisconnect={game.disconnect}
@@ -373,4 +391,3 @@ export default function App() {
     </div>
   );
 }
-

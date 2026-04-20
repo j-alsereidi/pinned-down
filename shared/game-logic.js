@@ -1,14 +1,13 @@
 import {
   DISTANCE_BANDS,
-  HIDER_SURVIVAL_POINTS,
-  HIDER_UNFOUND_BONUS,
   MATCH_PHASES,
-  PLAYER_ROLES,
   ROOM_CODE_ALPHABET,
   ROOM_CODE_LENGTH,
   SEEKER_TURN_SCORES,
   TURN_LIMIT,
 } from "./constants.js";
+
+const MAX_HINT_IMAGES = TURN_LIMIT;
 
 function getEntropy(length) {
   if (globalThis.crypto?.getRandomValues) {
@@ -32,83 +31,264 @@ function cleanText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function buildHintText(hiddenLocation) {
-  const typeHint = hiddenLocation.types?.length
-    ? hiddenLocation.types
-        .slice(0, 2)
-        .map((type) => type.replace(/_/g, " "))
-        .join(" and ")
-    : "a notable landmark";
-  const cityHint = hiddenLocation.city
-    ? `Operations center on ${hiddenLocation.city}.`
-    : hiddenLocation.formattedAddress
-      ? `Recon picked up the address fragment: ${hiddenLocation.formattedAddress.split(",").slice(0, 2).join(",")}.`
-      : "Urban density data is inconclusive.";
-  const regionHint = hiddenLocation.countryRegion
-    ? `${hiddenLocation.countryRegion}${hiddenLocation.countrySubregion ? ` / ${hiddenLocation.countrySubregion}` : ""}`
-    : "Regional telemetry unavailable";
-  const capitalHint = hiddenLocation.countryCapital
-    ? `The target country's capital is ${hiddenLocation.countryCapital}.`
-    : `The country code begins with ${hiddenLocation.countryCode?.[0] ?? "?"}.`;
-
-  return [
-    {
-      id: "type",
-      title: "Place Type",
-      text: `The hideout is tagged by Google as ${typeHint}.`,
-    },
-    {
-      id: "city",
-      title: "City Trail",
-      text: cityHint,
-    },
-    {
-      id: "region",
-      title: "Regional Grid",
-      text: `The target country is in ${regionHint}.`,
-    },
-    {
-      id: "capital",
-      title: "National Intel",
-      text: capitalHint,
-    },
-  ];
-}
-
 function getActivePlayerIds(room) {
   return [room.hostPlayerId, room.guestPlayerId].filter(Boolean);
 }
 
-function createReadyByPlayer(playerIds = []) {
-  return Object.fromEntries(playerIds.filter(Boolean).map((playerId) => [playerId, false]));
+function getOpponentPlayerId(room, playerId) {
+  return getActivePlayerIds(room).find((candidateId) => candidateId !== playerId) ?? null;
 }
 
-function getWaitingPlayerNames(room) {
-  const readyByPlayer = room.currentRound.readyByPlayer ?? {};
+function createEmptyPlayerRoundState() {
+  return {
+    guesses: [],
+    pendingGuess: null,
+    completed: false,
+    foundOnTurn: null,
+    totalGuessTimeMs: 0,
+    bestDistanceKm: null,
+  };
+}
 
+function createRoundState(playerIds = []) {
+  return {
+    hides: Object.fromEntries(playerIds.map((playerId) => [playerId, null])),
+    playerStates: Object.fromEntries(playerIds.map((playerId) => [playerId, createEmptyPlayerRoundState()])),
+    turnNumber: 1,
+    turnStartedAt: null,
+    status: playerIds.length === 2 ? "awaiting-hides" : "awaiting-opponent",
+  };
+}
+
+function getLockedPlayerNames(room) {
   return getActivePlayerIds(room)
-    .filter((playerId) => !readyByPlayer[playerId])
+    .filter((playerId) => room.currentRound.hides?.[playerId])
     .map((playerId) => room.players[playerId]?.displayName ?? "Unknown agent");
 }
 
-function setWaitingMessage(room, prefix) {
-  const waitingNames = getWaitingPlayerNames(room);
-
-  if (waitingNames.length === 0) {
-    return prefix;
-  }
-
-  if (waitingNames.length === 1) {
-    return `${prefix}${waitingNames[0]}.`;
-  }
-
-  return `${prefix}${waitingNames.slice(0, -1).join(", ")} and ${waitingNames.at(-1)}.`;
+function getWaitingPlayerNames(room) {
+  return getActivePlayerIds(room)
+    .filter((playerId) => !room.currentRound.hides?.[playerId])
+    .map((playerId) => room.players[playerId]?.displayName ?? "Unknown agent");
 }
 
-function areBothPlayersReady(room) {
-  const activePlayerIds = getActivePlayerIds(room);
+function getPlayersAwaitingGuess(room) {
+  return getActivePlayerIds(room).filter((playerId) => {
+    const playerState = room.currentRound.playerStates?.[playerId];
+    return playerState && !playerState.completed && !playerState.pendingGuess;
+  });
+}
 
-  return activePlayerIds.length === 2 && activePlayerIds.every((playerId) => room.currentRound.readyByPlayer?.[playerId]);
+function getSubmittedPlayerNames(room) {
+  return getActivePlayerIds(room)
+    .filter((playerId) => room.currentRound.playerStates?.[playerId]?.pendingGuess)
+    .map((playerId) => room.players[playerId]?.displayName ?? "Unknown agent");
+}
+
+function areBothHidesLocked(room) {
+  const playerIds = getActivePlayerIds(room);
+  return playerIds.length === 2 && playerIds.every((playerId) => room.currentRound.hides?.[playerId]);
+}
+
+function areAllActiveGuessesSubmitted(room) {
+  const activePlayers = getActivePlayerIds(room).filter((playerId) => {
+    const playerState = room.currentRound.playerStates?.[playerId];
+    return playerState && !playerState.completed;
+  });
+
+  return activePlayers.length > 0 && activePlayers.every((playerId) => room.currentRound.playerStates[playerId]?.pendingGuess);
+}
+
+function getHintImages(hiddenLocation) {
+  const images = Array.isArray(hiddenLocation?.hintImages)
+    ? hiddenLocation.hintImages.filter(Boolean).slice(0, MAX_HINT_IMAGES)
+    : [];
+
+  if (images.length > 0) {
+    return images;
+  }
+
+  return hiddenLocation?.previewImage ? [hiddenLocation.previewImage] : [];
+}
+
+function getAverageDistance(guesses) {
+  if (!guesses.length) {
+    return 0;
+  }
+
+  return Math.round(guesses.reduce((sum, guess) => sum + guess.distanceKm, 0) / guesses.length);
+}
+
+function getClosestDistance(guesses) {
+  if (!guesses.length) {
+    return 0;
+  }
+
+  return Math.min(...guesses.map((guess) => guess.distanceKm));
+}
+
+function getObscurityBonusRate(reviewCount) {
+  if (typeof reviewCount !== "number" || Number.isNaN(reviewCount)) {
+    return 0;
+  }
+
+  if (reviewCount <= 24) {
+    return 0.4;
+  }
+
+  if (reviewCount <= 99) {
+    return 0.25;
+  }
+
+  if (reviewCount <= 499) {
+    return 0.1;
+  }
+
+  return 0;
+}
+
+function getSeekScore(playerState, targetLocation) {
+  const attemptsUsed = playerState.guesses.length || TURN_LIMIT;
+  const attemptsScore = playerState.foundOnTurn ? SEEKER_TURN_SCORES[playerState.foundOnTurn] ?? 0 : 0;
+  const averageDistance = getAverageDistance(playerState.guesses);
+  const closestDistance = getClosestDistance(playerState.guesses);
+  const timeScore = Math.max(0, 2000 - Math.round(playerState.totalGuessTimeMs / 1000) * 20);
+  const distanceScore = playerState.foundOnTurn
+    ? Math.max(0, 2500 - Math.round(averageDistance / 2))
+    : Math.max(0, 1500 - Math.round(closestDistance / 6));
+  const baseSeekScore = attemptsScore + timeScore + distanceScore;
+  const obscurityRate = getObscurityBonusRate(targetLocation?.reviewCount);
+  const obscurityBonus = Math.round(baseSeekScore * obscurityRate);
+
+  return {
+    attemptsUsed,
+    attemptsScore,
+    timeScore,
+    distanceScore,
+    baseSeekScore,
+    obscurityBonus,
+    obscurityRate,
+    reviewCount: typeof targetLocation?.reviewCount === "number" ? targetLocation.reviewCount : null,
+    averageDistance,
+    closestDistance,
+    totalGuessTimeMs: playerState.totalGuessTimeMs,
+    score: baseSeekScore + obscurityBonus,
+  };
+}
+
+function createResultSummary(room) {
+  const playerIds = getActivePlayerIds(room);
+  const playerResults = Object.fromEntries(
+    playerIds.map((playerId) => {
+      const opponentId = getOpponentPlayerId(room, playerId);
+      const playerState = room.currentRound.playerStates[playerId];
+      const targetHide = opponentId ? room.currentRound.hides[opponentId] : null;
+      const seek = getSeekScore(playerState, targetHide);
+      const roundScore = seek.score;
+
+      return [
+        playerId,
+        {
+          playerId,
+          playerName: room.players[playerId]?.displayName ?? "Unknown agent",
+          opponentId,
+          found: Boolean(playerState.foundOnTurn),
+          foundOnTurn: playerState.foundOnTurn,
+          seek: {
+            targetCountry: targetHide?.countryName ?? "Unknown",
+            targetPlace: targetHide?.name ?? "Unknown",
+            guessHistory: [...playerState.guesses],
+            ...seek,
+          },
+          roundScore,
+        },
+      ];
+    }),
+  );
+
+  for (const playerId of playerIds) {
+    room.cumulativeScores[playerId] = (room.cumulativeScores[playerId] ?? 0) + playerResults[playerId].roundScore;
+  }
+
+  const [firstPlayerId, secondPlayerId] = playerIds;
+  const winnerId = !secondPlayerId
+    ? firstPlayerId
+    : playerResults[firstPlayerId].roundScore === playerResults[secondPlayerId].roundScore
+      ? room.cumulativeScores[firstPlayerId] >= room.cumulativeScores[secondPlayerId]
+        ? firstPlayerId
+        : secondPlayerId
+      : playerResults[firstPlayerId].roundScore > playerResults[secondPlayerId].roundScore
+        ? firstPlayerId
+        : secondPlayerId;
+
+  return {
+    winnerId,
+    playerResults,
+    totalScores: { ...room.cumulativeScores },
+  };
+}
+
+function getTurnResolutionMessage(room) {
+  const awaitingPlayers = getPlayersAwaitingGuess(room);
+  if (awaitingPlayers.length === 0) {
+    return `Turn ${room.currentRound.turnNumber} resolving.`;
+  }
+
+  if (awaitingPlayers.length === 1) {
+    return `Turn ${room.currentRound.turnNumber}: waiting on ${room.players[awaitingPlayers[0]]?.displayName ?? "the rival"}.`;
+  }
+
+  return `Turn ${room.currentRound.turnNumber}: awaiting both guesses.`;
+}
+
+function beginSeekPhase(room) {
+  room.phase = MATCH_PHASES.SEEK;
+  room.currentRound.turnNumber = 1;
+  room.currentRound.turnStartedAt = Date.now();
+  room.currentRound.status = "active-turn";
+  room.statusMessage = "Both hides are locked. Turn 1 is live.";
+  return room;
+}
+
+function resolveTurn(room) {
+  const activePlayerIds = getActivePlayerIds(room).filter((playerId) => !room.currentRound.playerStates[playerId]?.completed);
+
+  for (const playerId of activePlayerIds) {
+    const playerState = room.currentRound.playerStates[playerId];
+    const pendingGuess = playerState.pendingGuess;
+    if (!pendingGuess) {
+      continue;
+    }
+
+    playerState.pendingGuess = null;
+    playerState.guesses.push(pendingGuess);
+    playerState.totalGuessTimeMs += pendingGuess.elapsedMs;
+    playerState.bestDistanceKm = playerState.bestDistanceKm == null
+      ? pendingGuess.distanceKm
+      : Math.min(playerState.bestDistanceKm, pendingGuess.distanceKm);
+
+    if (pendingGuess.correct) {
+      playerState.completed = true;
+      playerState.foundOnTurn = room.currentRound.turnNumber;
+    } else if (room.currentRound.turnNumber >= TURN_LIMIT) {
+      playerState.completed = true;
+    }
+  }
+
+  const everyoneComplete = getActivePlayerIds(room).every(
+    (playerId) => room.currentRound.playerStates[playerId]?.completed,
+  );
+
+  if (everyoneComplete) {
+    finishRound(room);
+    return room;
+  }
+
+  room.currentRound.turnNumber += 1;
+  room.currentRound.turnStartedAt = Date.now();
+  room.currentRound.status = "active-turn";
+  room.statusMessage = `Turn ${room.currentRound.turnNumber} active. One image hint unlocked per resolved guess.`;
+  return room;
 }
 
 export function generateRoomCode(existingCodes = new Set(), randomBytes = null) {
@@ -134,19 +314,6 @@ export function createPlayer(playerId, displayName, isHost = false) {
   };
 }
 
-export function getRoundAssignments(roundNumber, hostPlayerId, guestPlayerId) {
-  if (!hostPlayerId || !guestPlayerId) {
-    return {
-      hiderId: hostPlayerId ?? null,
-      seekerId: guestPlayerId ?? null,
-    };
-  }
-
-  return roundNumber % 2 === 1
-    ? { hiderId: hostPlayerId, seekerId: guestPlayerId }
-    : { hiderId: guestPlayerId, seekerId: hostPlayerId };
-}
-
 export function createRoomState({ code, hostPlayer }) {
   return {
     code,
@@ -158,15 +325,7 @@ export function createRoomState({ code, hostPlayer }) {
     players: {
       [hostPlayer.id]: hostPlayer,
     },
-    currentRound: {
-      hiderId: hostPlayer.id,
-      seekerId: null,
-      hiddenLocation: null,
-      turnNumber: 1,
-      guesses: [],
-      readyByPlayer: createReadyByPlayer([hostPlayer.id]),
-      status: "awaiting-opponent",
-    },
+    currentRound: createRoundState([hostPlayer.id]),
     cumulativeScores: {
       [hostPlayer.id]: 0,
     },
@@ -180,68 +339,19 @@ export function joinRoomState(room, guestPlayer) {
   room.players[guestPlayer.id] = guestPlayer;
   room.guestPlayerId = guestPlayer.id;
   room.cumulativeScores[guestPlayer.id] = room.cumulativeScores[guestPlayer.id] ?? 0;
-  room.currentRound = {
-    ...room.currentRound,
-    ...getRoundAssignments(room.roundNumber, room.hostPlayerId, room.guestPlayerId),
-    readyByPlayer: createReadyByPlayer([room.hostPlayerId, room.guestPlayerId]),
-    status: "awaiting-ready",
-  };
-  room.statusMessage = "Both agents linked. Waiting for both players to ready up.";
+  room.currentRound = createRoundState(getActivePlayerIds(room));
+  room.currentRound.status = "ready";
+  room.statusMessage = "Both agents linked. Host can start the round.";
   return room;
 }
 
 export function startRound(room) {
-  const assignments = getRoundAssignments(
-    room.roundNumber,
-    room.hostPlayerId,
-    room.guestPlayerId,
-  );
-
   room.phase = MATCH_PHASES.HIDE;
-  room.currentRound = {
-    hiderId: assignments.hiderId,
-    seekerId: assignments.seekerId,
-    hiddenLocation: null,
-    turnNumber: 1,
-    guesses: [],
-    readyByPlayer: createReadyByPlayer([assignments.hiderId, assignments.seekerId]),
-    status: "waiting-for-hide",
-  };
+  room.currentRound = createRoundState(getActivePlayerIds(room));
   room.result = null;
   room.rematchVotes = [];
-  room.statusMessage = "Hider is securing coordinates.";
+  room.statusMessage = "Both players are choosing their hiding spots.";
   return room;
-}
-
-export function registerPlayerReady(room, playerId) {
-  if (!playerId) {
-    return { accepted: false, allReady: false };
-  }
-
-  if (!room.currentRound.readyByPlayer) {
-    room.currentRound.readyByPlayer = createReadyByPlayer(getActivePlayerIds(room));
-  }
-
-  if (!(playerId in room.currentRound.readyByPlayer)) {
-    room.currentRound.readyByPlayer[playerId] = false;
-  }
-
-  room.currentRound.readyByPlayer[playerId] = true;
-  const allReady = areBothPlayersReady(room);
-
-  if (room.phase === MATCH_PHASES.LOBBY) {
-    room.currentRound.status = allReady ? "ready" : "awaiting-ready";
-    room.statusMessage = allReady
-      ? "Both agents ready. Starting the hide phase."
-      : setWaitingMessage(room, "Lobby armed. Waiting on ");
-  } else if (room.phase === MATCH_PHASES.HIDE && room.currentRound.hiddenLocation) {
-    room.currentRound.status = allReady ? "ready-for-seek" : "awaiting-seek-ready";
-    room.statusMessage = allReady
-      ? "Both agents ready. Seeker is hunting the target country."
-      : setWaitingMessage(room, "Location locked. Waiting on ");
-  }
-
-  return { accepted: true, allReady };
 }
 
 export function sanitizeHiddenLocation(hiddenLocation, countryLookup) {
@@ -254,6 +364,14 @@ export function sanitizeHiddenLocation(hiddenLocation, countryLookup) {
     return null;
   }
 
+  const hintImages = Array.isArray(hiddenLocation?.hintImages)
+    ? hiddenLocation.hintImages.filter((value) => cleanText(value)).slice(0, MAX_HINT_IMAGES)
+    : [];
+  const previewImage = cleanText(hiddenLocation?.previewImage) || hintImages[0] || "";
+  const reviewCount = typeof hiddenLocation?.reviewCount === "number" && !Number.isNaN(hiddenLocation.reviewCount)
+    ? hiddenLocation.reviewCount
+    : null;
+
   return {
     placeId: cleanText(hiddenLocation.placeId),
     name: cleanText(hiddenLocation.name) || cleanText(hiddenLocation.formattedAddress),
@@ -261,7 +379,9 @@ export function sanitizeHiddenLocation(hiddenLocation, countryLookup) {
     lat,
     lng,
     city: cleanText(hiddenLocation.city),
-    previewImage: cleanText(hiddenLocation.previewImage),
+    previewImage,
+    hintImages: hintImages.length > 0 ? hintImages : previewImage ? [previewImage] : [],
+    reviewCount,
     types: Array.isArray(hiddenLocation.types) ? hiddenLocation.types.slice(0, 5) : [],
     countryCode: country.code,
     countryName: country.name,
@@ -271,39 +391,25 @@ export function sanitizeHiddenLocation(hiddenLocation, countryLookup) {
   };
 }
 
-export function lockHiddenLocation(room, hiddenLocation, countryLookup) {
+export function lockHiddenLocation(room, playerId, hiddenLocation, countryLookup) {
   const location = sanitizeHiddenLocation(hiddenLocation, countryLookup);
   if (!location) {
     return null;
   }
 
-  room.currentRound.hiddenLocation = location;
-  room.currentRound.readyByPlayer = createReadyByPlayer([
-    room.currentRound.hiderId,
-    room.currentRound.seekerId,
-  ]);
-  room.currentRound.status = "awaiting-seek-ready";
-  room.statusMessage = "Location locked. Waiting for both agents to ready up.";
+  room.currentRound.hides[playerId] = location;
+  room.currentRound.status = "awaiting-hides";
+
+  if (areBothHidesLocked(room)) {
+    beginSeekPhase(room);
+  } else {
+    const waitingPlayers = getWaitingPlayerNames(room);
+    room.statusMessage = waitingPlayers.length === 0
+      ? "Waiting for the rival hide."
+      : `Hide locked. Waiting on ${waitingPlayers.join(" and ")}.`;
+  }
+
   return location;
-}
-
-export function advanceToSeekPhase(room) {
-  room.phase = MATCH_PHASES.SEEK;
-  room.currentRound.status = "active";
-  room.statusMessage = "Seeker is hunting the target country.";
-  return room;
-}
-
-export function getRevealedHintCount(room) {
-  if (!room.currentRound.hiddenLocation) {
-    return 0;
-  }
-
-  if (room.phase === MATCH_PHASES.RESULTS) {
-    return TURN_LIMIT;
-  }
-
-  return Math.min(room.currentRound.guesses.length + 1, TURN_LIMIT);
 }
 
 export function haversineKm(lat1, lng1, lat2, lng2) {
@@ -327,12 +433,14 @@ export function getDistanceBand(distanceKm) {
   );
 }
 
-export function submitGuess(room, guessedCountryCode, countryLookup) {
-  const targetLocation = room.currentRound.hiddenLocation;
+export function submitGuess(room, playerId, guessedCountryCode, countryLookup, submittedAt = Date.now()) {
+  const targetPlayerId = getOpponentPlayerId(room, playerId);
+  const targetLocation = targetPlayerId ? room.currentRound.hides[targetPlayerId] : null;
   const countries = normalizeCountryLookup(countryLookup);
   const guessedCountry = countries.get(cleanText(guessedCountryCode).toUpperCase());
+  const playerState = room.currentRound.playerStates[playerId];
 
-  if (!targetLocation || !guessedCountry) {
+  if (!targetLocation || !guessedCountry || !playerState || playerState.completed || playerState.pendingGuess) {
     return null;
   }
 
@@ -354,70 +462,25 @@ export function submitGuess(room, guessedCountryCode, countryLookup) {
     band: band.id,
     label: band.label,
     correct,
+    elapsedMs: Math.max(0, submittedAt - (room.currentRound.turnStartedAt ?? submittedAt)),
   };
 
-  room.currentRound.guesses.push(guessResult);
+  playerState.pendingGuess = guessResult;
+  room.currentRound.status = "awaiting-turn";
+  room.statusMessage = getTurnResolutionMessage(room);
 
-  if (correct) {
-    finishRound(room, {
-      found: true,
-      foundOnTurn: room.currentRound.turnNumber,
-      targetLocation,
-    });
-  } else if (room.currentRound.turnNumber >= TURN_LIMIT) {
-    finishRound(room, {
-      found: false,
-      foundOnTurn: null,
-      targetLocation,
-    });
-  } else {
-    room.currentRound.turnNumber += 1;
-    room.statusMessage = `Turn ${room.currentRound.turnNumber} active. Additional intel unlocked.`;
+  if (areAllActiveGuessesSubmitted(room)) {
+    resolveTurn(room);
   }
 
   return guessResult;
 }
 
-export function finishRound(room, { found, foundOnTurn, targetLocation }) {
-  const survivalTurns = found ? Math.max(foundOnTurn - 1, 0) : TURN_LIMIT;
-  const seekerPoints = found ? SEEKER_TURN_SCORES[foundOnTurn] : 0;
-  const hiderPoints =
-    survivalTurns * HIDER_SURVIVAL_POINTS + (found ? 0 : HIDER_UNFOUND_BONUS);
-
+export function finishRound(room) {
   room.phase = MATCH_PHASES.RESULTS;
   room.currentRound.status = "complete";
-
-  room.cumulativeScores[room.currentRound.seekerId] += seekerPoints;
-  room.cumulativeScores[room.currentRound.hiderId] += hiderPoints;
-
-  const averageDistance =
-    room.currentRound.guesses.length > 0
-      ? Math.round(
-          room.currentRound.guesses.reduce(
-            (sum, guess) => sum + guess.distanceKm,
-            0,
-          ) / room.currentRound.guesses.length,
-        )
-      : 0;
-
-  room.result = {
-    found,
-    winnerId: found ? room.currentRound.seekerId : room.currentRound.hiderId,
-    targetCountry: targetLocation.countryName,
-    totalTurnsUsed: room.currentRound.guesses.length,
-    averageDistance,
-    targetLocation,
-    scoreBreakdown: {
-      seekerPoints,
-      hiderPoints,
-      survivalTurns,
-      foundOnTurn,
-      unfoundBonus: found ? 0 : HIDER_UNFOUND_BONUS,
-    },
-  };
-  room.statusMessage = found
-    ? `Target neutralized on turn ${foundOnTurn}.`
-    : "Seeker failed to identify the country in time.";
+  room.result = createResultSummary(room);
+  room.statusMessage = `${room.players[room.result.winnerId]?.displayName ?? "Winner"} won the round.`;
   return room;
 }
 
@@ -429,24 +492,12 @@ export function registerRematchVote(room, playerId) {
   if (room.rematchVotes.length >= 2) {
     room.roundNumber += 1;
     startRound(room);
-    room.statusMessage = "Rematch accepted. Roles swapped.";
+    room.statusMessage = "Rematch accepted. Both players are hiding again.";
     return { accepted: true };
   }
 
   room.statusMessage = "Rematch pending rival confirmation.";
   return { accepted: false };
-}
-
-export function getPlayerRole(room, playerId) {
-  if (!playerId) {
-    return null;
-  }
-
-  return room.currentRound.hiderId === playerId
-    ? PLAYER_ROLES.HIDER
-    : room.currentRound.seekerId === playerId
-      ? PLAYER_ROLES.SEEKER
-      : null;
 }
 
 export function getOpponent(room, playerId) {
@@ -456,14 +507,25 @@ export function getOpponent(room, playerId) {
 export function getPublicRoomState(room, playerId) {
   const localPlayer = room.players[playerId] ?? null;
   const opponent = getOpponent(room, playerId);
-  const targetLocation = room.currentRound.hiddenLocation;
-  const revealedHintCount = getRevealedHintCount(room);
-  const revealedHints = targetLocation
-    ? buildHintText(targetLocation).slice(0, revealedHintCount)
-    : [];
-  const role = getPlayerRole(room, playerId);
-  const canSeeTarget =
-    role === PLAYER_ROLES.HIDER || room.phase === MATCH_PHASES.RESULTS;
+  const opponentId = opponent?.id ?? null;
+  const localState = room.currentRound.playerStates?.[playerId] ?? createEmptyPlayerRoundState();
+  const opponentState = opponentId
+    ? room.currentRound.playerStates?.[opponentId] ?? createEmptyPlayerRoundState()
+    : createEmptyPlayerRoundState();
+  const localHide = room.currentRound.hides?.[playerId] ?? null;
+  const opponentHide = opponentId ? room.currentRound.hides?.[opponentId] ?? null : null;
+  const revealedHintCount = room.phase === MATCH_PHASES.HIDE
+    ? 0
+    : room.phase === MATCH_PHASES.RESULTS
+      ? TURN_LIMIT
+      : Math.min(localState.guesses.length + 1, TURN_LIMIT);
+  const revealedHintImages = getHintImages(opponentHide)
+    .slice(0, revealedHintCount)
+    .map((imageUrl, index) => ({
+      id: `hint-${index + 1}`,
+      imageUrl,
+      turn: index + 1,
+    }));
 
   return {
     code: room.code,
@@ -472,21 +534,39 @@ export function getPublicRoomState(room, playerId) {
     statusMessage: room.statusMessage,
     localPlayer,
     opponent,
-    role,
     players: Object.values(room.players),
     cumulativeScores: room.cumulativeScores,
     currentRound: {
-      ...room.currentRound,
-      hiddenLocation: canSeeTarget ? room.currentRound.hiddenLocation : null,
-      revealedHints,
+      status: room.currentRound.status,
+      turnNumber: room.currentRound.turnNumber,
+      hidesLockedByPlayer: Object.fromEntries(
+        getActivePlayerIds(room).map((id) => [id, Boolean(room.currentRound.hides?.[id])]),
+      ),
+      localHide,
+      localGuesses: [...localState.guesses],
+      localSubmittedGuess: Boolean(localState.pendingGuess),
+      opponentSubmittedGuess: Boolean(opponentState.pendingGuess),
+      localCompleted: localState.completed,
+      opponentCompleted: opponentState.completed,
+      localFoundOnTurn: localState.foundOnTurn,
+      opponentFoundOnTurn: opponentState.foundOnTurn,
+      revealedHintImages,
       revealedHintCount,
+      totalHintCount: TURN_LIMIT,
+      opponentGuessCount: opponentState.guesses.length,
+      lockedPlayers: getLockedPlayerNames(room),
+      waitingPlayers: getWaitingPlayerNames(room),
+      submittedPlayers: getSubmittedPlayerNames(room),
     },
     result: room.result
       ? {
-          ...room.result,
-          targetLocation: room.result.targetLocation,
+          winnerId: room.result.winnerId,
+          local: room.result.playerResults[playerId] ?? null,
+          opponent: opponentId ? room.result.playerResults[opponentId] ?? null : null,
+          totalScores: room.result.totalScores,
         }
       : null,
     rematchVotes: [...room.rematchVotes],
   };
 }
+

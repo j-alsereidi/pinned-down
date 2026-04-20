@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { CONNECTION_STATES, MATCH_PHASES, MESSAGE_TYPES, PLAYER_ROLES } from "../../shared/constants.js";
-import { getPlayerRole } from "../../shared/game-logic.js";
+import { CONNECTION_STATES, MATCH_PHASES, MESSAGE_TYPES } from "../../shared/constants.js";
 import { addMatchHistory, clearSession, getStoredSession, saveSession } from "./storage.js";
 
 function getSocketUrl() {
@@ -167,7 +166,7 @@ export function usePinnedDownGame(profile) {
     });
   };
 
-  const signalReady = () => {
+  const startRound = () => {
     setIsBusy(true);
     sendMessage({ type: MESSAGE_TYPES.PLAYER_READY });
   };
@@ -238,7 +237,6 @@ export function usePinnedDownGame(profile) {
       return;
     }
 
-    const localRole = getPlayerRole(room, room.localPlayer.id);
     addMatchHistory({
       id: resultId,
       recordedAt: Date.now(),
@@ -246,56 +244,54 @@ export function usePinnedDownGame(profile) {
       roundNumber: room.roundNumber,
       localPlayerName: room.localPlayer.displayName,
       opponentName: room.opponent?.displayName ?? "Disconnected Rival",
-      role: localRole,
+      role: "hide-and-seek",
       won: room.result.winnerId === room.localPlayer.id,
-      targetCountry: room.result.targetCountry,
-      totalTurnsUsed: room.result.totalTurnsUsed,
+      targetCountry: room.result.local?.seek?.targetCountry ?? "Unknown",
+      totalTurnsUsed: room.result.local?.seek?.attemptsUsed ?? 0,
       score: room.cumulativeScores[room.localPlayer.id] ?? 0,
-      outcome: room.result.found ? "Target neutralized" : "Target survived",
+      outcome: room.result.winnerId === room.localPlayer.id ? "Won round" : "Lost round",
     });
     lastStoredResultRef.current = resultId;
   }, [room]);
 
-  const localRole = room?.localPlayer?.id ? getPlayerRole(room, room.localPlayer.id) : null;
-  const readyByPlayer = room?.currentRound?.readyByPlayer ?? {};
-  const localReady = room?.localPlayer?.id ? Boolean(readyByPlayer[room.localPlayer.id]) : false;
-  const opponentReady = room?.opponent?.id ? Boolean(readyByPlayer[room.opponent.id]) : false;
-  const canLobbyReady = room?.phase === MATCH_PHASES.LOBBY && Boolean(room.opponent?.id) && !localReady;
-  const canSeekReady =
-    room?.phase === MATCH_PHASES.HIDE &&
-    Boolean(room.currentRound?.hiddenLocation) &&
-    !localReady;
-  const canSignalReady = Boolean(canLobbyReady || canSeekReady);
-  const isWaitingForHide =
-    room?.phase === MATCH_PHASES.HIDE &&
-    localRole === PLAYER_ROLES.SEEKER &&
-    !room.currentRound?.hiddenLocation;
-  const isWaitingForSeekReady =
-    room?.phase === MATCH_PHASES.HIDE &&
-    Boolean(room.currentRound?.hiddenLocation);
+  const localHideLocked = Boolean(room?.currentRound?.localHide);
+  const opponentHideLocked = room?.opponent?.id
+    ? Boolean(room.currentRound?.hidesLockedByPlayer?.[room.opponent.id])
+    : false;
+  const localSubmittedGuess = Boolean(room?.currentRound?.localSubmittedGuess);
+  const opponentSubmittedGuess = Boolean(room?.currentRound?.opponentSubmittedGuess);
+  const localCompleted = Boolean(room?.currentRound?.localCompleted);
+  const opponentCompleted = Boolean(room?.currentRound?.opponentCompleted);
+  const canStartRound = room?.phase === MATCH_PHASES.LOBBY && Boolean(room?.localPlayer?.isHost) && Boolean(room?.opponent?.id);
+  const canSubmitGuess = room?.phase === MATCH_PHASES.SEEK && !localSubmittedGuess && !localCompleted;
+  const isWaitingForHide = room?.phase === MATCH_PHASES.HIDE && localHideLocked && !opponentHideLocked;
+  const isWaitingForTurnResolution = room?.phase === MATCH_PHASES.SEEK && localSubmittedGuess && !localCompleted;
   const isWaitingForOpponent = room?.opponent && room.opponent.connected === false;
 
   return {
     room,
-    localRole,
     connectionState,
     errorMessage,
     isBusy,
     joinCodeDraft,
     entryView,
     lastEvent,
-    localReady,
-    opponentReady,
-    canSignalReady,
+    localHideLocked,
+    opponentHideLocked,
+    localSubmittedGuess,
+    opponentSubmittedGuess,
+    localCompleted,
+    opponentCompleted,
+    canStartRound,
+    canSubmitGuess,
     isWaitingForHide,
-    isWaitingForSeekReady,
+    isWaitingForTurnResolution,
     isWaitingForOpponent,
     setEntryView,
     setJoinCodeDraft,
     createRoom,
     joinRoom,
-    signalReady,
-    startDeployment: signalReady,
+    startRound,
     lockLocation,
     submitGuess,
     voteRematch,

@@ -1,6 +1,6 @@
-import { MATCH_PHASES, MESSAGE_TYPES, PLAYER_ROLES } from "./constants.js";
+import { MATCH_PHASES, MESSAGE_TYPES } from "./constants.js";
 
-export { MATCH_PHASES, MESSAGE_TYPES, PLAYER_ROLES };
+export { MATCH_PHASES, MESSAGE_TYPES };
 
 export const ERROR_CODES = Object.freeze({
   ROOM_NOT_FOUND: "ROOM_NOT_FOUND",
@@ -17,7 +17,6 @@ export const ERROR_CODES = Object.freeze({
  * RoomCode: string
  * PlayerId: string
  * TurnNumber: 1 | 2 | 3 | 4
- * PlayerRole: one of PLAYER_ROLES
  * MatchPhase: one of MATCH_PHASES
  *
  * SettingsProfile:
@@ -28,27 +27,26 @@ export const ERROR_CODES = Object.freeze({
  *   panZoomSensitivity: number
  * }
  *
- * HintCard:
+ * HintImage:
  * {
  *   id: string,
- *   title: string,
- *   text: string
+ *   imageUrl: string,
+ *   turn: number
  * }
  *
- * LocationRecord:
+ * HiddenPlace:
  * {
- *   id: string,
- *   country: string,
- *   city: string,
- *   venue: string,
+ *   placeId: string,
+ *   name: string,
+ *   formattedAddress: string,
  *   lat: number,
  *   lng: number,
- *   difficulty: string,
- *   searchTokens: string[],
+ *   city: string,
  *   previewImage: string,
- *   mapViewport: { x: number, y: number, scale: number },
- *   hotspot: { x: number, y: number },
- *   hints: HintCard[]
+ *   hintImages: string[],
+ *   types: string[],
+ *   countryCode: string,
+ *   countryName: string
  * }
  *
  * GuessResult:
@@ -58,16 +56,8 @@ export const ERROR_CODES = Object.freeze({
  *   distanceKm: number,
  *   band: string,
  *   label: string,
- *   correct: boolean
- * }
- *
- * ScoreBreakdown:
- * {
- *   seekerPoints: number,
- *   hiderPoints: number,
- *   survivalTurns: number,
- *   foundOnTurn: number | null,
- *   unfoundBonus: number
+ *   correct: boolean,
+ *   elapsedMs: number
  * }
  */
 

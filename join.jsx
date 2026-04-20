@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   ChevronLeft,
   Lock,
@@ -19,12 +19,31 @@ export const JoinOperationScreen = ({
   errorMessage,
   isBusy,
 }) => {
+  const inputRef = useRef(null);
   const codeSlots = Array.from({ length: 4 }, (_, index) => codeInput[index] ?? "");
   const progress = Math.min(codeInput.length * 25, 100);
 
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+
+  const refocusInput = () => {
+    window.setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.setSelectionRange(codeInput.length, codeInput.length);
+    }, 0);
+  };
+
   return (
-    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#050507] font-sans text-slate-50 selection:bg-red-500/30">
-      <div className="absolute inset-0 z-0 flex items-center justify-center bg-black pointer-events-none">
+    <div
+      className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#050507] font-sans text-slate-50 selection:bg-red-500/30"
+      onPointerDownCapture={(event) => {
+        if (!event.target.closest("[data-join-focus-exempt='true']")) {
+          refocusInput();
+        }
+      }}
+    >
+      <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center bg-black">
         <img
           src="/assets/world-map.svg"
           alt="World Map"
@@ -37,6 +56,7 @@ export const JoinOperationScreen = ({
         <div className="flex items-center gap-4">
           <button
             type="button"
+            data-join-focus-exempt="true"
             onClick={onBack}
             className="group rounded-lg border border-white/10 bg-black/40 p-2 backdrop-blur-md transition-colors hover:bg-white/10"
           >
@@ -67,7 +87,7 @@ export const JoinOperationScreen = ({
 
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4">
         <div className="relative w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-black/60 p-8 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)] backdrop-blur-2xl md:p-12">
-          <div className="absolute top-0 left-1/2 h-px w-3/4 -translate-x-1/2 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
+          <div className="absolute left-1/2 top-0 h-px w-3/4 -translate-x-1/2 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
 
           <div className="mb-10 flex flex-col items-center text-center">
             <div className="relative mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/30 bg-red-600/10 shadow-[0_0_30px_rgba(220,38,38,0.15)]">
@@ -112,9 +132,15 @@ export const JoinOperationScreen = ({
               Cipher Terminal
             </label>
             <input
+              ref={inputRef}
               value={codeInput}
+              data-join-focus-exempt="true"
+              onBlur={(event) => {
+                if (!event.relatedTarget?.closest?.("[data-join-focus-exempt='true']")) {
+                  refocusInput();
+                }
+              }}
               onChange={(event) => onCodeChange(event.target.value)}
-              placeholder="4A9X"
               maxLength={4}
               className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-center text-lg font-black uppercase tracking-[0.5em] text-white outline-none transition focus:border-red-500/50 focus:bg-black"
             />
@@ -147,6 +173,7 @@ export const JoinOperationScreen = ({
           <div className="flex justify-center">
             <button
               type="button"
+              data-join-focus-exempt="true"
               onClick={onConnect}
               disabled={codeInput.length !== 4 || isBusy}
               className={`group relative flex w-full max-w-sm items-center justify-center gap-3 overflow-hidden rounded-xl px-8 py-4 font-black ${

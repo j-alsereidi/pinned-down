@@ -16,20 +16,14 @@ export const HostLobbyScreen = ({
   lobbyCode,
   localPlayer,
   opponent,
-  currentRound,
   statusMessage,
   roundNumber,
-  localRole,
-  localReady,
-  opponentReady,
-  canReady,
+  canStart,
   isBusy,
   onBack,
   onCopyCode,
-  onReady,
+  onStartRound,
 }) => {
-  const opponentRole = opponent ? getAssignedRole(currentRound, opponent.id) : null;
-
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#050507] font-sans text-slate-50 selection:bg-red-500/30">
       <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center bg-black">
@@ -46,7 +40,7 @@ export const HostLobbyScreen = ({
           <button
             type="button"
             onClick={onBack}
-            className="group rounded-lg border border-white/10 bg-black/40 p-2 backdrop-blur-md transition-colors hover:bg-red-900/40 hover:text-red-400"
+            className="group rounded-lg border border-white/10 bg-black/40 p-2 backdrop-blur-md transition-colors hover:bg-red-900/40 hover:text-red-300"
           >
             <X size={20} className="transition-transform group-hover:rotate-90" />
           </button>
@@ -122,12 +116,11 @@ export const HostLobbyScreen = ({
             <div className="absolute left-1/2 top-0 h-1 w-1/2 -translate-x-1/2 bg-gradient-to-r from-transparent via-red-500/50 to-transparent" />
 
             <PlayerCard
-              accent="green"
               icon={<UserCheck size={32} className="text-white" />}
               title={localPlayer?.displayName}
-              subtitle={`YOU // ${getRoleLabel(localRole)}`}
-              onlineLabel="Linked Agent"
-              ready={localReady}
+              subtitle={statusMessage}
+              connected
+              accent="green"
             />
 
             <div className="flex flex-col items-center justify-center px-4">
@@ -138,57 +131,35 @@ export const HostLobbyScreen = ({
             </div>
 
             <PlayerCard
-              accent="red"
               icon={<Radar size={32} className="animate-spin-slow text-red-400" />}
               title={opponent?.displayName ?? "..."}
-              subtitle={opponent ? `REMOTE // ${getRoleLabel(opponentRole)}` : "SCANNING_FREQUENCIES..."}
-              onlineLabel={opponent ? (opponent.connected ? "Opponent Linked" : "Reconnect Pending") : "Awaiting Signal"}
-              ready={opponentReady}
+              subtitle={opponent ? "Live opponent linked" : "Waiting for incoming join"}
               connected={Boolean(opponent?.connected)}
+              accent="red"
               dimmed={!opponent}
             />
           </div>
 
-          <div className="mt-6 grid w-full max-w-3xl grid-cols-1 gap-3 rounded-[1.5rem] border border-white/10 bg-[#0b1118]/78 p-4 shadow-2xl backdrop-blur-xl sm:grid-cols-2">
-            <ReadyBadge
-              label={`${localPlayer?.displayName ?? "You"} status`}
-              role={getRoleLabel(localRole)}
-              ready={localReady}
-            />
-            <ReadyBadge
-              label={`${opponent?.displayName ?? "Opponent"} status`}
-              role={getRoleLabel(opponentRole)}
-              ready={opponentReady}
-              pending={!opponent}
-            />
+          <div className="mt-6 text-[10px] font-mono uppercase tracking-[0.24em] text-red-300">
+            {statusMessage}
           </div>
 
-          <div className="mt-8 flex w-full max-w-2xl flex-col items-center">
-            <div className="flex flex-col items-center gap-1 text-[10px] font-mono tracking-widest text-white/40 opacity-90">
-              <span>{statusMessage}</span>
-              <span>
-                Current assignment: {localRole === "hider" ? "you secure coordinates" : "you intercept the signal"}
-              </span>
-              {!opponent && <span className="text-red-300">[NETWORK] Listening for incoming connection...</span>}
-            </div>
-
-            <div className="mt-6 flex w-full flex-col gap-3 sm:flex-row">
-              <button
-                type="button"
-                onClick={onBack}
-                className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-bold uppercase tracking-[0.2em] text-white/75 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
-              >
-                Disconnect
-              </button>
-              <button
-                type="button"
-                onClick={onReady}
-                disabled={!canReady || isBusy}
-                className={`flex-1 rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.2em] transition ${canReady && !isBusy ? "bg-red-600 text-white hover:bg-red-500" : "cursor-not-allowed border border-white/10 bg-white/5 text-white/35"}`}
-              >
-                {localReady ? "Ready Locked" : canReady ? (isBusy ? "Syncing..." : "Ready Up") : opponent ? "Waiting On Rival" : "Awaiting Rival"}
-              </button>
-            </div>
+          <div className="mt-8 flex w-full max-w-2xl flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={onBack}
+              className="flex-1 rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-sm font-bold uppercase tracking-[0.2em] text-white/75 transition hover:border-white/20 hover:bg-white/10 hover:text-white"
+            >
+              Disconnect
+            </button>
+            <button
+              type="button"
+              onClick={onStartRound}
+              disabled={!canStart || isBusy}
+              className={`flex-1 rounded-2xl px-5 py-4 text-sm font-black uppercase tracking-[0.2em] transition ${canStart && !isBusy ? "bg-red-600 text-white hover:bg-red-500" : "cursor-not-allowed border border-white/10 bg-white/5 text-white/35"}`}
+            >
+              {canStart ? (isBusy ? "Starting..." : "Start Hide Phase") : opponent ? "Host Starts Match" : "Awaiting Rival"}
+            </button>
           </div>
         </div>
       </div>
@@ -201,7 +172,7 @@ export const HostLobbyScreen = ({
   );
 };
 
-function PlayerCard({ accent, icon, title, subtitle, onlineLabel, ready, connected = true, dimmed = false }) {
+function PlayerCard({ icon, title, subtitle, connected = false, accent, dimmed = false }) {
   const accentClass = accent === "green"
     ? "border-green-500/35 bg-emerald-950/18"
     : "border-red-500/25 bg-red-950/22";
@@ -219,7 +190,7 @@ function PlayerCard({ accent, icon, title, subtitle, onlineLabel, ready, connect
         <div className="mb-1 flex items-center gap-2">
           <Wifi size={12} className={connected ? "text-green-400" : "animate-pulse text-red-400"} />
           <span className={`text-[10px] font-mono uppercase tracking-widest ${connected ? "text-green-400" : "animate-pulse text-red-400"}`}>
-            {onlineLabel}
+            {connected ? "Connected" : "Waiting"}
           </span>
         </div>
         <h3 className={`text-2xl font-black uppercase tracking-tight ${dimmed ? "text-white/40 italic" : "text-white"}`}>
@@ -228,49 +199,9 @@ function PlayerCard({ accent, icon, title, subtitle, onlineLabel, ready, connect
         <span className="mt-1 text-[10px] font-mono text-white/35">
           {subtitle}
         </span>
-        <span className={`mt-2 inline-flex w-fit rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.2em] ${ready ? "border-emerald-400/40 bg-emerald-400/15 text-emerald-300" : "border-white/12 bg-white/6 text-white/55"}`}>
-          {ready ? "Ready" : "Waiting"}
-        </span>
       </div>
     </div>
   );
-}
-
-function ReadyBadge({ label, role, ready, pending = false }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-      <div className="text-[10px] font-mono uppercase tracking-[0.25em] text-white/45">{label}</div>
-      <div className="mt-2 flex items-center justify-between gap-3">
-        <span className="text-sm font-bold uppercase tracking-[0.18em] text-white/82">
-          {pending ? "Awaiting Join" : role}
-        </span>
-        <span className={`rounded-full border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.2em] ${ready ? "border-emerald-400/40 bg-emerald-400/15 text-emerald-300" : "border-white/12 bg-white/6 text-white/58"}`}>
-          {ready ? "Ready" : "Waiting"}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function getAssignedRole(currentRound, playerId) {
-  if (!playerId) {
-    return null;
-  }
-
-  if (currentRound?.hiderId === playerId) {
-    return "hider";
-  }
-
-  if (currentRound?.seekerId === playerId) {
-    return "seeker";
-  }
-
-  return null;
-}
-
-function getRoleLabel(role) {
-  return role ? role.toUpperCase() : "UNKNOWN";
 }
 
 export default HostLobbyScreen;
-
