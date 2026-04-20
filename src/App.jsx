@@ -14,8 +14,8 @@ import { usePlaceSearch } from "./game/usePlaceSearch.js";
 import { SettingsModal } from "./components/SettingsModal.jsx";
 import { RankingsModal } from "./components/RankingsModal.jsx";
 
-function createIntroPayload(key, kind, eyebrow, title, footer) {
-  return { key, kind, eyebrow, title, footer };
+function createIntroPayload(key, kind, primaryText, secondaryText = "") {
+  return { key, kind, primaryText, secondaryText };
 }
 
 export default function App() {
@@ -116,7 +116,7 @@ export default function App() {
     setGuessCountryQuery("");
     setSeekInlineError("");
     setSelectionError("");
-    setStageIntro(createIntroPayload(introKey, "hide-phase", "Hide Phase", `ROUND ${room.roundNumber}`, "Conceal Your Position"));
+    setStageIntro(createIntroPayload(introKey, "hide-phase", "HIDE!"));
 
     if (introTimeoutRef.current) {
       window.clearTimeout(introTimeoutRef.current);
@@ -124,7 +124,7 @@ export default function App() {
 
     introTimeoutRef.current = window.setTimeout(() => {
       setStageIntro((current) => (current?.key === introKey ? null : current));
-    }, 1550);
+    }, 2550);
   }, [room?.code, room?.roundNumber, room?.phase]);
 
   useEffect(() => {
@@ -149,8 +149,7 @@ export default function App() {
     setSelectionError("");
     seekMapSessionRef.current += 1;
 
-    const footer = turnNumber === 1 ? "First Guess Live" : "Reset and Reacquire";
-    setStageIntro(createIntroPayload(introKey, "seek-turn", "Seek Turn", `ROUND ${turnNumber}`, footer));
+    setStageIntro(createIntroPayload(introKey, "seek-turn", "SEEK!", `ROUND ${turnNumber}`));
 
     if (introTimeoutRef.current) {
       window.clearTimeout(introTimeoutRef.current);
@@ -158,7 +157,7 @@ export default function App() {
 
     introTimeoutRef.current = window.setTimeout(() => {
       setStageIntro((current) => (current?.key === introKey ? null : current));
-    }, 1550);
+    }, 2550);
   }, [room?.code, room?.roundNumber, room?.phase, room?.currentRound?.status, room?.currentRound?.turnNumber]);
 
   useEffect(() => {
@@ -446,16 +445,15 @@ export default function App() {
           <div className="absolute h-[42rem] w-[42rem] rounded-full bg-red-500/24 blur-3xl animate-pulse" />
           <div className="absolute h-[28rem] w-[28rem] rounded-full border-2 border-red-200/40 animate-[ping_1400ms_cubic-bezier(0,0,0.2,1)_1]" />
           <div className="absolute h-[54rem] w-[54rem] bg-[radial-gradient(circle,rgba(255,255,255,0.18)_0%,rgba(255,255,255,0)_62%)] opacity-90" />
-          <div className="relative text-center text-white drop-shadow-[0_0_36px_rgba(255,255,255,0.32)] animate-[pulse_820ms_ease-in-out_2]">
-            <div className="text-[11px] font-mono font-bold uppercase tracking-[0.75em] text-red-200/92 sm:text-[13px]">
-              {stageIntro.eyebrow}
+          <div className="relative text-center drop-shadow-[0_0_36px_rgba(255,255,255,0.32)] animate-[pulse_820ms_ease-in-out_2]">
+            <div className="text-7xl font-black uppercase italic tracking-[0.2em] text-red-500 sm:text-8xl lg:text-[10rem]">
+              {stageIntro.primaryText}
             </div>
-            <div className="mt-4 text-6xl font-black uppercase italic tracking-[0.24em] text-white sm:text-8xl lg:text-[10rem]">
-              {stageIntro.title}
-            </div>
-            <div className="mt-4 text-sm font-bold uppercase tracking-[0.55em] text-white/74 sm:text-base">
-              {stageIntro.footer}
-            </div>
+            {stageIntro.secondaryText ? (
+              <div className="mt-5 text-3xl font-black uppercase tracking-[0.28em] text-white sm:text-4xl lg:text-5xl">
+                {stageIntro.secondaryText}
+              </div>
+            ) : null}
           </div>
         </div>
       )}
