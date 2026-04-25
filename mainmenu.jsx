@@ -10,9 +10,8 @@ import {
 } from "lucide-react";
 import { TechGlobeBackdrop } from "./src/components/TechGlobeBackdrop.jsx";
 
-const globeScale = 1.08;
-const globeOpacity = 0.2;
-const globeYOffset = 42;
+const globeOpacity = 0.25;
+const globeYOffset = 0;
 
 export const MainMenuScreen = ({
   activeLobbyCode,
@@ -26,11 +25,10 @@ export const MainMenuScreen = ({
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-[#050507] font-sans text-slate-50">
       <TechGlobeBackdrop
-        globeScale={globeScale}
         globeOpacity={globeOpacity}
         globeYOffset={globeYOffset}
-        gridOpacity={0.05}
-        ringOpacity={0.12}
+        gridOpacity={0.06}
+        ringOpacity={0.6}
       />
 
       <div className="absolute left-10 top-10 z-10 flex gap-1 animate-pulse">
