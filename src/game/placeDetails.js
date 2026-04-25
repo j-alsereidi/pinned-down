@@ -1,3 +1,5 @@
+import { getGoogleMapsApiKey } from "./googleMaps.js";
+
 function getAddressComponent(place, type) {
   return place.address_components?.find((component) => component.types?.includes(type)) ?? null;
 }
@@ -11,6 +13,17 @@ function getPlacePhotoUrls(place) {
     .slice(0, 4)
     .map((photo) => photo?.getUrl?.({ maxWidth: 900, maxHeight: 500 }) ?? "")
     .filter(Boolean);
+}
+
+function getStaticMapPreviewUrl(location) {
+  const apiKey = getGoogleMapsApiKey();
+  if (!apiKey || !location) {
+    return "";
+  }
+
+  const lat = location.lat();
+  const lng = location.lng();
+  return `https://maps.googleapis.com/maps/api/staticmap?center=${encodeURIComponent(`${lat},${lng}`)}&zoom=15&size=1200x800&maptype=roadmap&markers=color:red%7C${encodeURIComponent(`${lat},${lng}`)}&key=${encodeURIComponent(apiKey)}`;
 }
 
 export function normalizeGooglePlaceDetails(place, selectedCountry = null) {
@@ -32,6 +45,8 @@ export function normalizeGooglePlaceDetails(place, selectedCountry = null) {
   }
 
   const hintImages = getPlacePhotoUrls(place);
+  const fallbackPreviewImage = getStaticMapPreviewUrl(location);
+  const previewImage = hintImages[0] ?? fallbackPreviewImage;
 
   return {
     placeId: place.place_id,
@@ -40,12 +55,11 @@ export function normalizeGooglePlaceDetails(place, selectedCountry = null) {
     lat: location.lat(),
     lng: location.lng(),
     city: localityComponent?.long_name ?? selectedCountry?.capital ?? "",
-    previewImage: hintImages[0] ?? "",
-    hintImages,
+    previewImage,
+    hintImages: hintImages.length > 0 ? hintImages : previewImage ? [previewImage] : [],
     reviewCount: typeof place.user_ratings_total === "number" ? place.user_ratings_total : null,
     types: place.types ?? [],
     countryCode,
     countryName: selectedCountry?.name ?? countryComponent?.long_name ?? "",
   };
 }
-

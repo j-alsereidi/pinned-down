@@ -10,6 +10,11 @@ import {
   Cpu,
   LoaderCircle,
 } from "lucide-react";
+import { TechGlobeBackdrop } from "./src/components/TechGlobeBackdrop.jsx";
+
+const globeScale = 1.04;
+const globeOpacity = 0.17;
+const globeYOffset = 12;
 
 export const JoinOperationScreen = ({
   codeInput,
@@ -43,14 +48,13 @@ export const JoinOperationScreen = ({
         }
       }}
     >
-      <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center bg-black">
-        <img
-          src="/assets/world-map.svg"
-          alt="World Map"
-          className="absolute inset-0 h-full w-full scale-125 object-cover opacity-[0.08] contrast-150"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90" />
-      </div>
+      <TechGlobeBackdrop
+        globeScale={globeScale}
+        globeOpacity={globeOpacity}
+        globeYOffset={globeYOffset}
+        gridOpacity={0.04}
+        ringOpacity={0.1}
+      />
 
       <div className="relative z-10 flex w-full items-start justify-between p-6">
         <div className="flex items-center gap-4">
@@ -88,6 +92,7 @@ export const JoinOperationScreen = ({
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-4">
         <div className="relative w-full max-w-3xl overflow-hidden rounded-[2rem] border border-white/10 bg-black/60 p-8 shadow-[0_20px_50px_-20px_rgba(0,0,0,0.8)] backdrop-blur-2xl md:p-12">
           <div className="absolute left-1/2 top-0 h-px w-3/4 -translate-x-1/2 bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
+          <div className="absolute -left-32 -top-32 h-64 w-64 rounded-full bg-red-600/20 blur-[80px]" />
 
           <div className="mb-10 flex flex-col items-center text-center">
             <div className="relative mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/30 bg-red-600/10 shadow-[0_0_30px_rgba(220,38,38,0.15)]">
@@ -97,9 +102,6 @@ export const JoinOperationScreen = ({
             <h2 className="mb-2 text-3xl font-black uppercase italic tracking-tight md:text-4xl">
               Input Code
             </h2>
-            <p className="text-sm font-mono uppercase tracking-widest text-white/50">
-              Ask host for a 4-digit lobby code
-            </p>
           </div>
 
           <div className="mb-12 flex justify-center gap-3 md:gap-6">
@@ -144,9 +146,6 @@ export const JoinOperationScreen = ({
               maxLength={4}
               className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-center text-lg font-black uppercase tracking-[0.5em] text-white outline-none transition focus:border-red-500/50 focus:bg-black"
             />
-            <div className="mt-3 text-center text-[10px] font-mono uppercase tracking-[0.3em] text-white/30">
-              Enter the live room code to connect
-            </div>
             {errorMessage && (
               <div className="mt-3 rounded-xl border border-red-500/20 bg-red-950/30 px-3 py-2 text-center text-xs text-red-300">
                 {errorMessage}

@@ -8,6 +8,11 @@ import {
   ChevronRight,
   Zap,
 } from "lucide-react";
+import { TechGlobeBackdrop } from "./src/components/TechGlobeBackdrop.jsx";
+
+const globeScale = 1.08;
+const globeOpacity = 0.2;
+const globeYOffset = 42;
 
 export const MainMenuScreen = ({
   activeLobbyCode,
@@ -20,27 +25,37 @@ export const MainMenuScreen = ({
 }) => {
   return (
     <div className="relative flex min-h-screen w-full flex-col items-center justify-center overflow-hidden bg-[#050507] font-sans text-slate-50">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <img
-          src="/assets/world-map.svg"
-          alt="Pinned Down world map"
-          className="absolute inset-0 h-full w-full object-cover opacity-[0.18] contrast-125"
-        />
-        <div className="absolute top-[-10%] left-[-10%] h-[60%] w-[60%] rounded-full bg-red-600/10 blur-[150px]" />
-        <div className="absolute bottom-[-10%] right-[-10%] h-[50%] w-[50%] rounded-full bg-blue-600/5 blur-[150px]" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-red-500/10 to-transparent" />
+      <TechGlobeBackdrop
+        globeScale={globeScale}
+        globeOpacity={globeOpacity}
+        globeYOffset={globeYOffset}
+        gridOpacity={0.05}
+        ringOpacity={0.12}
+      />
+
+      <div className="absolute left-10 top-10 z-10 flex gap-1 animate-pulse">
+        <div className="h-4 w-1 bg-red-600" />
+        <div className="h-4 w-1 bg-red-600/40" />
+        <div className="h-4 w-1 bg-red-600/10" />
+      </div>
+
+      <div className="absolute right-10 top-10 z-10 text-right">
+        <div className="text-[10px] font-mono leading-none text-white/20">SECTOR_GRID</div>
+        <div className="text-lg font-black leading-none text-white/40">42-NX-09</div>
       </div>
 
       <div className="relative z-10 mb-12 flex flex-col items-center animate-in fade-in slide-in-from-bottom-8 duration-1000">
         <div className="relative mb-6">
-          <div className="absolute inset-0 bg-red-600 opacity-30 blur-3xl" />
-          <div className="relative rounded-[2rem] border-2 border-red-600/50 bg-black p-6 shadow-[0_0_50px_-10px_rgba(220,38,38,0.5)] transition-transform duration-500 hover:scale-110">
+          <div className="absolute inset-0 animate-pulse bg-red-600 opacity-30 blur-3xl" />
+          <div className="relative rounded-[2rem] border-2 border-red-600/50 bg-black/75 p-6 shadow-[0_0_50px_-10px_rgba(220,38,38,0.5)] transition-transform duration-500 hover:scale-110 backdrop-blur-xl">
             <MapPin
               size={72}
               strokeWidth={2.5}
               fill="#dc2626"
               className="text-white drop-shadow-2xl"
             />
+            <div className="absolute -left-1 -top-1 h-4 w-4 border-l-2 border-t-2 border-red-500" />
+            <div className="absolute -bottom-1 -right-1 h-4 w-4 border-b-2 border-r-2 border-red-500" />
           </div>
         </div>
 
@@ -54,7 +69,7 @@ export const MainMenuScreen = ({
           </span>
         </h1>
 
-        <div className="flex items-center gap-4 rounded-full border border-red-500/20 bg-red-950/30 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-red-400">
+        <div className="flex items-center gap-4 rounded-full border border-red-500/20 bg-red-950/30 px-4 py-1.5 text-[10px] font-bold uppercase tracking-[0.3em] text-red-400 backdrop-blur-md">
           <Zap size={12} fill="currentColor" />
           <span>Competitive Hide & Seek</span>
           <Zap size={12} fill="currentColor" />

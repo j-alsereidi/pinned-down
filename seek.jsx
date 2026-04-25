@@ -165,18 +165,37 @@ export const SeekingScreen = ({
                       className={`relative aspect-square overflow-hidden rounded-lg border ${isVisible ? "border-red-500/45 bg-red-950/20 shadow-[0_0_20px_rgba(220,38,38,0.12)]" : "border-white/8 bg-black/55"}`}
                     >
                       {isVisible ? (
-                        <img src={hintImage.imageUrl} alt={`Hint ${index + 1}`} className="h-full w-full object-cover" />
+                        <>
+                          <img src={hintImage.imageUrl} alt={`Hint ${index + 1}`} className="h-full w-full object-cover" />
+                          <div className="absolute inset-0 bg-gradient-to-t from-[#05070b] via-[#05070b]/45 to-transparent" />
+                          <div className="absolute left-2 top-2 flex items-center gap-1 rounded bg-[#0b1118]/80 px-1.5 py-0.5 text-[9px] font-mono text-white/68">
+                            <ShieldCheck size={8} />
+                            T-0{index + 1}
+                          </div>
+                          <div className="absolute inset-x-0 bottom-0 p-3 text-[10px] font-mono uppercase tracking-[0.2em] text-white/80">
+                            {`Image hint ${index + 1}`}
+                          </div>
+                        </>
                       ) : (
-                        <img src="/assets/world-map.svg" alt="Locked hint" className="h-full w-full object-cover opacity-12 grayscale" />
+                        <>
+                          <div
+                            className="absolute inset-0 opacity-20"
+                            style={{
+                              backgroundImage:
+                                `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`,
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-gradient-to-b from-white/5 to-black/40" />
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-white/25">
+                            <Lock size={20} />
+                            <div className="text-[9px] font-mono uppercase tracking-[0.3em]">Locked</div>
+                          </div>
+                          <div className="absolute left-2 top-2 flex items-center gap-1 rounded border border-white/5 bg-black/80 px-1.5 py-0.5 text-[9px] font-mono text-white/25">
+                            <Lock size={8} />
+                            T-0{index + 1}
+                          </div>
+                        </>
                       )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#05070b] via-[#05070b]/45 to-transparent" />
-                      <div className="absolute left-2 top-2 flex items-center gap-1 rounded bg-[#0b1118]/80 px-1.5 py-0.5 text-[9px] font-mono text-white/68">
-                        {isVisible ? <ShieldCheck size={8} /> : <Lock size={8} />}
-                        T-0{index + 1}
-                      </div>
-                      <div className="absolute inset-x-0 bottom-0 p-3 text-[10px] font-mono uppercase tracking-[0.2em] text-white/80">
-                        {isVisible ? `Image hint ${index + 1}` : "Locked"}
-                      </div>
                     </div>
                   );
                 })}

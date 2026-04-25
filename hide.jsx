@@ -7,9 +7,14 @@ import {
   ShieldCheck,
   Target,
   UserRound,
+  Crosshair,
 } from "lucide-react";
 import { CountryCombobox } from "./src/components/CountryCombobox.jsx";
 import { GoogleMapPanel } from "./src/components/GoogleMapPanel.jsx";
+
+function getPreviewImage(selectedPlace) {
+  return selectedPlace?.previewImage || selectedPlace?.hintImages?.[0] || "/assets/world-map.svg";
+}
 
 export const HidingScreen = ({
   localPlayer,
@@ -38,8 +43,10 @@ export const HidingScreen = ({
   onMapError,
   onConfirm,
 }) => {
+  const previewImage = getPreviewImage(selectedPlace);
+
   return (
-    <div className="relative min-h-screen overflow-hidden bg-[#07090d] font-sans text-slate-50 selection:bg-red-500/30">
+    <div className="relative min-h-screen overflow-hidden bg-black font-sans text-slate-50 selection:bg-red-500/30">
       <GoogleMapPanel
         key={`hide-map-${mapSessionKey}`}
         center={mapCenter}
@@ -52,43 +59,52 @@ export const HidingScreen = ({
         onMapError={onMapError}
       />
 
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#05070b]/60 via-transparent to-[#05070b]/75" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-[#05070b]/55 via-transparent to-[#05070b]/30" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-black/65 via-transparent to-black/65" />
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.12] mix-blend-overlay"
+        style={{
+          backgroundImage:
+            "linear-gradient(#dc2626 1px, transparent 1px), linear-gradient(90deg, #dc2626 1px, transparent 1px)",
+          backgroundSize: "100px 100px",
+        }}
+      />
 
       <div className="absolute inset-0 z-20 pointer-events-none flex flex-col">
         <div className="pointer-events-none flex items-start justify-between p-6">
-          <div className="pointer-events-auto flex items-center gap-4 rounded-2xl border border-white/10 bg-[#0d1117]/76 px-4 py-3 shadow-2xl backdrop-blur-xl">
+          <div className="pointer-events-auto flex items-center gap-4 rounded-2xl border border-white/10 bg-black/60 px-4 py-3 shadow-2xl backdrop-blur-xl">
             <button
               type="button"
               onClick={onBack}
-              className="rounded-lg border border-white/15 bg-[#0f141d]/75 p-2 transition-colors hover:bg-[#1a2230]"
+              className="rounded-lg border border-white/10 bg-black/40 p-2 transition-colors hover:bg-white/10"
             >
               <ChevronLeft size={20} />
             </button>
             <div>
-              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-400">
+              <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-red-500">
                 Phase 01
               </div>
               <h1 className="text-xl font-black italic tracking-tight text-white">
-                SECURE YOUR HIDE
+                SECURE LOCATION
               </h1>
             </div>
           </div>
 
-          <div className="pointer-events-auto hidden rounded-2xl border border-white/10 bg-[#0d1117]/76 px-4 py-3 text-right shadow-2xl backdrop-blur-xl md:block">
-            <div className="text-[10px] font-mono uppercase tracking-widest text-white/48">Coordinates Lock</div>
-            <div className="text-sm font-black tracking-wider text-red-300">
+          <div className="pointer-events-auto hidden rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-right shadow-2xl backdrop-blur-xl md:block">
+            <div className="text-[10px] font-mono uppercase tracking-widest text-white/40">Coordinates Lock</div>
+            <div className="text-sm font-black tracking-wider text-red-500">
               {selectedPlace ? `${selectedPlace.lat.toFixed(4)} / ${selectedPlace.lng.toFixed(4)}` : "Waiting for place selection"}
             </div>
-            <div className="mt-2 text-xs font-medium uppercase tracking-wide text-white/62">
-              {selectedCountry ? selectedCountry.name : "Select country"}
+            <div className="mt-2 flex items-center justify-end gap-2 text-xs font-medium uppercase tracking-wide text-white/50">
+              <Crosshair size={14} className="text-white/50" />
+              <span>{selectedCountry ? selectedCountry.name : "Select country"}</span>
             </div>
           </div>
         </div>
 
         <div className="pointer-events-none flex flex-1 items-stretch justify-between gap-6 px-6 pb-8">
           <div className="pointer-events-auto relative z-30 flex w-full max-w-md flex-col gap-4">
-            <div className="grid grid-cols-1 gap-3 rounded-[1.4rem] border border-white/15 bg-[#0d1117]/82 p-4 shadow-2xl backdrop-blur-xl sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-3 rounded-[1.4rem] border border-white/10 bg-black/60 p-4 shadow-2xl backdrop-blur-2xl sm:grid-cols-2">
               <StatusPanel
                 name={localPlayer?.displayName ?? "You"}
                 label="Your Hide"
@@ -102,7 +118,7 @@ export const HidingScreen = ({
               />
             </div>
 
-            <div className="rounded-[1.4rem] border border-white/15 bg-[#0d1117]/82 p-4 shadow-2xl backdrop-blur-xl">
+            <div className="rounded-[1.4rem] border border-white/10 bg-black/60 p-4 shadow-2xl backdrop-blur-2xl">
               <CountryCombobox
                 label="Target Country"
                 query={countryQuery}
@@ -131,24 +147,29 @@ export const HidingScreen = ({
                   getOptionDescription={(option) => option.secondaryText ?? option.description ?? ""}
                   selectionLabel={selectedPlace?.name ?? ""}
                 />
-                {placeSearchBusy && <div className="mt-2 text-[10px] font-mono uppercase tracking-[0.24em] text-red-300">Loading Google Places…</div>}
-                {placeSearchError && <div className="mt-2 text-xs text-red-300">{placeSearchError}</div>}
+                {placeSearchBusy ? <div className="mt-2 text-[10px] font-mono uppercase tracking-[0.24em] text-red-300">Loading Google Places...</div> : null}
+                {placeSearchError ? <div className="mt-2 text-xs text-red-300">{placeSearchError}</div> : null}
               </div>
             </div>
           </div>
 
           <div className="pointer-events-auto relative z-10 hidden w-full max-w-sm flex-col gap-4 lg:flex">
-            <div className="overflow-hidden rounded-[1.75rem] border border-red-500/25 bg-[#0d1117]/82 p-4 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] backdrop-blur-2xl">
+            <div className="overflow-hidden rounded-[1.75rem] border border-red-500/25 bg-black/70 p-4 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] backdrop-blur-2xl">
               <div className="relative h-56 overflow-hidden rounded-2xl bg-slate-800">
                 <img
-                  src={selectedPlace?.previewImage || "/assets/world-map.svg"}
+                  src={previewImage}
                   alt={selectedPlace?.name || selectedCountry?.name || "Google Places preview"}
-                  className="h-full w-full object-cover opacity-88"
+                  className="h-full w-full object-cover opacity-85"
+                  onError={(event) => {
+                    if (event.currentTarget.src !== `${window.location.origin}/assets/world-map.svg`) {
+                      event.currentTarget.src = "/assets/world-map.svg";
+                    }
+                  }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#05070b]/92 to-transparent" />
-                <div className="absolute left-2 top-2 flex items-center gap-1.5 rounded border border-white/15 bg-[#0b1118]/72 px-2 py-1 backdrop-blur-md">
-                  <ImageIcon size={10} className="text-emerald-300" />
-                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-emerald-300">
+                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+                <div className="absolute left-2 top-2 flex items-center gap-1.5 rounded border border-white/15 bg-black/60 px-2 py-1 backdrop-blur-md">
+                  <ImageIcon size={10} className="text-green-400" />
+                  <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-green-400">
                     {isLocked ? "Hide Locked" : "Live Google Preview"}
                   </span>
                 </div>
@@ -158,29 +179,31 @@ export const HidingScreen = ({
                 <h3 className="mb-1 text-base font-bold uppercase leading-tight tracking-tight text-white">
                   {selectedPlace?.name || selectedCountry?.name || "Choose a country and place"}
                 </h3>
-                <p className="mb-3 flex items-center gap-1 text-xs font-medium text-white/60">
-                  <Target size={12} className="text-red-400" />
+                <p className="mb-3 flex items-center gap-1 text-xs font-medium text-white/55">
+                  <Target size={12} className="text-red-500" />
                   {selectedPlace?.formattedAddress || selectedCountry?.officialName || "Google Places will fill this in after selection."}
                 </p>
 
                 <div className="flex gap-2 text-[10px] font-mono">
-                  <div className="flex-1 rounded border border-white/8 bg-white/7 p-2">
-                    <span className="mb-0.5 block text-white/38">SOURCE</span>
-                    <span className="text-white/88">Google Places</span>
+                  <div className="flex-1 rounded border border-white/5 bg-white/5 p-2">
+                    <span className="mb-0.5 block text-white/30">TYPE</span>
+                    <span className="text-white/80">Google Place</span>
                   </div>
-                  <div className="flex-1 rounded border border-white/8 bg-white/7 p-2">
-                    <span className="mb-0.5 block text-white/38">COUNTRY</span>
-                    <span className="text-yellow-300">{selectedCountry?.code || "--"}</span>
+                  <div className="flex-1 rounded border border-white/5 bg-white/5 p-2">
+                    <span className="mb-0.5 block text-white/30">COUNTRY</span>
+                    <span className="text-yellow-400">{selectedCountry?.code || "--"}</span>
                   </div>
                 </div>
               </div>
+
+              <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-red-500 to-transparent opacity-50" />
             </div>
           </div>
         </div>
 
         <div className="pointer-events-none px-6 pb-8">
           <div className="pointer-events-auto mx-auto flex w-full max-w-5xl items-end justify-between gap-6">
-            <div className="max-w-md rounded-2xl border border-white/12 bg-[#0d1117]/82 px-4 py-3 text-sm text-white/78 shadow-2xl backdrop-blur-xl">
+            <div className="max-w-md rounded-2xl border border-white/10 bg-black/60 px-4 py-3 text-sm text-white/78 shadow-2xl backdrop-blur-xl">
               <div className="mb-2 flex items-center gap-2 text-[10px] font-mono uppercase tracking-[0.25em] text-red-300">
                 <UserRound size={12} /> Live Status
               </div>
@@ -203,7 +226,7 @@ export const HidingScreen = ({
                 </div>
               </button>
 
-              <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/42">
+              <div className="text-[10px] font-mono uppercase tracking-[0.3em] text-white/35">
                 {isLocked
                   ? opponentHideLocked
                     ? "Both hides locked // Seek phase loading"
@@ -238,4 +261,3 @@ function StatusPanel({ name, label, state, highlight = false }) {
 }
 
 export default HidingScreen;
-

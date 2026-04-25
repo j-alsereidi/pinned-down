@@ -9,7 +9,13 @@ import {
   Wifi,
   X,
   Zap,
+  Activity,
 } from "lucide-react";
+import { TechGlobeBackdrop } from "./src/components/TechGlobeBackdrop.jsx";
+
+const globeScale = 1.12;
+const globeOpacity = 0.15;
+const globeYOffset = 30;
 
 export const HostLobbyScreen = ({
   copied,
@@ -26,14 +32,13 @@ export const HostLobbyScreen = ({
 }) => {
   return (
     <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#050507] font-sans text-slate-50 selection:bg-red-500/30">
-      <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center bg-black">
-        <img
-          src="/assets/world-map.svg"
-          alt="World Map"
-          className="absolute inset-0 h-full w-full translate-y-8 scale-125 object-cover opacity-[0.09] contrast-150"
-        />
-        <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-transparent to-black/90" />
-      </div>
+      <TechGlobeBackdrop
+        globeScale={globeScale}
+        globeOpacity={globeOpacity}
+        globeYOffset={globeYOffset}
+        gridOpacity={0.04}
+        ringOpacity={0.1}
+      />
 
       <div className="relative z-10 flex w-full items-start justify-between p-6">
         <div className="flex items-center gap-4">
@@ -117,8 +122,9 @@ export const HostLobbyScreen = ({
 
             <PlayerCard
               icon={<UserCheck size={32} className="text-white" />}
-              title={localPlayer?.displayName}
+              title={localPlayer?.displayName ?? "Agent_Zero"}
               subtitle={statusMessage}
+              statusLabel="Connected"
               connected
               accent="green"
             />
@@ -133,10 +139,12 @@ export const HostLobbyScreen = ({
             <PlayerCard
               icon={<Radar size={32} className="animate-spin-slow text-red-400" />}
               title={opponent?.displayName ?? "..."}
-              subtitle={opponent ? "Live opponent linked" : "Waiting for incoming join"}
+              subtitle={opponent ? "Live opponent linked" : "SCANNING_FREQUENCIES..."}
+              statusLabel={opponent ? "Connected" : "Awaiting Signal"}
               connected={Boolean(opponent?.connected)}
               accent="red"
               dimmed={!opponent}
+              scanning={!opponent}
             />
           </div>
 
@@ -172,7 +180,7 @@ export const HostLobbyScreen = ({
   );
 };
 
-function PlayerCard({ icon, title, subtitle, connected = false, accent, dimmed = false }) {
+function PlayerCard({ icon, title, subtitle, statusLabel, connected = false, accent, dimmed = false, scanning = false }) {
   const accentClass = accent === "green"
     ? "border-green-500/35 bg-emerald-950/18"
     : "border-red-500/25 bg-red-950/22";
@@ -182,24 +190,35 @@ function PlayerCard({ icon, title, subtitle, connected = false, accent, dimmed =
 
   return (
     <div className={`relative flex items-center gap-6 overflow-hidden rounded-2xl border p-6 ${accentClass} ${dimmed ? "opacity-75" : ""}`}>
+      {scanning ? <div className="absolute left-0 top-0 h-1 w-full bg-red-500/50 shadow-[0_0_15px_rgba(220,38,38,0.8)] animate-[scan_2s_linear_infinite]" /> : null}
       <div className={`absolute left-0 top-0 h-full w-1 ${barClass}`} />
       <div className="flex h-16 w-16 items-center justify-center rounded-xl border border-white/20 bg-black/45">
         {icon}
       </div>
       <div className="flex flex-col">
         <div className="mb-1 flex items-center gap-2">
-          <Wifi size={12} className={connected ? "text-green-400" : "animate-pulse text-red-400"} />
-          <span className={`text-[10px] font-mono uppercase tracking-widest ${connected ? "text-green-400" : "animate-pulse text-red-400"}`}>
-            {connected ? "Connected" : "Waiting"}
+          {scanning ? <Wifi size={12} className="animate-pulse text-red-400" /> : <Wifi size={12} className={connected ? "text-green-400" : "animate-pulse text-red-400"} />}
+          <span className={`text-[10px] font-mono uppercase tracking-widest ${scanning ? "animate-pulse text-red-400" : connected ? "text-green-400" : "animate-pulse text-red-400"}`}>
+            {statusLabel}
           </span>
         </div>
-        <h3 className={`text-2xl font-black uppercase tracking-tight ${dimmed ? "text-white/40 italic" : "text-white"}`}>
+        <h3 className={`text-2xl font-black uppercase tracking-tight ${dimmed ? "italic text-white/40" : "text-white"}`}>
           {title}
         </h3>
         <span className="mt-1 text-[10px] font-mono text-white/35">
           {subtitle}
         </span>
       </div>
+
+      {scanning ? (
+        <style>{`
+          @keyframes scan {
+            0% { transform: translateY(0); opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { transform: translateY(100px); opacity: 0; }
+          }
+        `}</style>
+      ) : null}
     </div>
   );
 }
