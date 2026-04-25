@@ -18,6 +18,9 @@
     "react-dom": "latest",
     "ws": "^8.20.0"
   },
+  "engines": {
+    "node": ">=18.0.0"
+  },
   "devDependencies": {
     "@tailwindcss/vite": "latest",
     "@vitejs/plugin-react": "latest",

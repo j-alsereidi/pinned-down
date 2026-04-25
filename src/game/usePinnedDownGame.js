@@ -8,9 +8,12 @@ function getSocketUrl() {
   }
 
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  const host = window.location.hostname || "localhost";
-  const port = import.meta.env.VITE_SERVER_PORT ?? "8787";
-  return `${protocol}://${host}:${port}`;
+  // In dev, VITE_SERVER_PORT lets the client reach a separately-running server.
+  // In production (Render), WS runs on the same host/port as the page — use window.location.host.
+  const host = import.meta.env.VITE_SERVER_PORT
+    ? `${window.location.hostname}:${import.meta.env.VITE_SERVER_PORT}`
+    : window.location.host;
+  return `${protocol}://${host}`;
 }
 
 function createPlayerId() {
