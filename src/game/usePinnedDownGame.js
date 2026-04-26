@@ -8,12 +8,13 @@ function getSocketUrl() {
   }
 
   const protocol = window.location.protocol === "https:" ? "wss" : "ws";
-  // In dev, VITE_SERVER_PORT lets the client reach a separately-running server.
-  // In production (Render), WS runs on the same host/port as the page — use window.location.host.
-  const host = import.meta.env.VITE_SERVER_PORT
-    ? `${window.location.hostname}:${import.meta.env.VITE_SERVER_PORT}`
-    : window.location.host;
-  return `${protocol}://${host}`;
+  if (import.meta.env.DEV) {
+    // Dev: Vite and the WS server run on separate ports
+    const port = import.meta.env.VITE_SERVER_PORT ?? "8787";
+    return `${protocol}://${window.location.hostname}:${port}`;
+  }
+  // Production: WS is served from the same host as the page (no explicit port needed)
+  return `${protocol}://${window.location.host}`;
 }
 
 function createPlayerId() {
