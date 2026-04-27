@@ -13,7 +13,7 @@ import { CountryCombobox } from "./src/components/CountryCombobox.jsx";
 import { GoogleMapPanel } from "./src/components/GoogleMapPanel.jsx";
 
 function getPreviewImage(selectedPlace) {
-  return selectedPlace?.previewImage || selectedPlace?.hintImages?.[0] || "/assets/world-map.svg";
+  return selectedPlace?.previewImage || selectedPlace?.hintImages?.[0] || null;
 }
 
 export const HidingScreen = ({
@@ -155,18 +155,23 @@ export const HidingScreen = ({
 
           <div className="pointer-events-auto relative z-10 hidden w-full max-w-sm flex-col gap-4 lg:flex">
             <div className="overflow-hidden rounded-[1.75rem] border border-red-500/25 bg-black/70 p-4 shadow-[0_10px_40px_-10px_rgba(0,0,0,0.8)] backdrop-blur-2xl">
-              <div className="relative h-56 overflow-hidden rounded-2xl bg-slate-800">
-                <img
-                  src={previewImage}
-                  alt={selectedPlace?.name || selectedCountry?.name || "Google Places preview"}
-                  className="h-full w-full object-cover opacity-85"
-                  onError={(event) => {
-                    if (event.currentTarget.src !== `${window.location.origin}/assets/world-map.svg`) {
-                      event.currentTarget.src = "/assets/world-map.svg";
-                    }
-                  }}
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+              <div className="relative h-56 overflow-hidden rounded-2xl bg-[#0a0e15]">
+                {previewImage ? (
+                  <>
+                    <img
+                      src={previewImage}
+                      alt={selectedPlace?.name || selectedCountry?.name || "Google Places preview"}
+                      className="h-full w-full object-cover opacity-85"
+                      onError={(event) => { event.currentTarget.style.display = "none"; }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 to-transparent" />
+                  </>
+                ) : (
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-white/18">
+                    <ImageIcon size={28} className="opacity-50" />
+                    <span className="text-[9px] font-mono uppercase tracking-[0.28em]">No place selected</span>
+                  </div>
+                )}
                 <div className="absolute left-2 top-2 flex items-center gap-1.5 rounded border border-white/15 bg-black/60 px-2 py-1 backdrop-blur-md">
                   <ImageIcon size={10} className="text-green-400" />
                   <span className="text-[9px] font-mono font-bold uppercase tracking-wider text-green-400">

@@ -172,6 +172,7 @@ export function usePinnedDownGame(profile) {
   const joinRoom = () => {
     manualCloseRef.current = false;
     setIsBusy(true);
+    setErrorMessage("");
     const sanitizedCode = joinCodeDraft.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4);
     const playerId = createPlayerId();
 
@@ -308,6 +309,7 @@ export function usePinnedDownGame(profile) {
     isWaitingForTurnResolution,
     isWaitingForOpponent,
     setEntryView,
+    setErrorMessage,
     setJoinCodeDraft,
     createRoom,
     joinRoom,

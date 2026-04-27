@@ -309,7 +309,7 @@ export default function App() {
         return (
           <JoinOperationScreen
             codeInput={game.joinCodeDraft}
-            onBack={() => game.setEntryView("menu")}
+            onBack={() => { game.setErrorMessage(""); game.setEntryView("menu"); }}
             onCodeChange={(value) => game.setJoinCodeDraft(value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 4))}
             onConnect={game.joinRoom}
             errorMessage={game.errorMessage}
@@ -459,7 +459,7 @@ export default function App() {
       )}
 
       {statusBanner && (
-        <div className="fixed inset-x-0 top-0 z-[70] flex justify-center px-4 py-4">
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-[70] flex justify-center px-4 py-4">
           <div className="flex w-full max-w-4xl items-center gap-3 rounded-2xl border border-red-500/24 bg-[#0b1118]/88 px-4 py-3 text-sm text-white/84 shadow-2xl backdrop-blur-xl">
             {selectionError || game.errorMessage || countriesError ? <AlertTriangle size={16} className="text-red-300" /> : <Radio size={16} className="text-emerald-300" />}
             <span>{statusBanner}</span>
