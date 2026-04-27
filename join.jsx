@@ -25,6 +25,7 @@ export const JoinOperationScreen = ({
   isBusy,
 }) => {
   const inputRef = useRef(null);
+  const skipRefocusRef = useRef(false);
   const codeSlots = Array.from({ length: 4 }, (_, index) => codeInput[index] ?? "");
   const progress = Math.min(codeInput.length * 25, 100);
 
@@ -33,6 +34,12 @@ export const JoinOperationScreen = ({
   }, []);
 
   const refocusInput = () => {
+    // If an exempt element (e.g. the back button) triggered a pointerdown,
+    // skip this one refocus so the button's click event isn't disrupted.
+    if (skipRefocusRef.current) {
+      skipRefocusRef.current = false;
+      return;
+    }
     window.setTimeout(() => {
       inputRef.current?.focus();
       inputRef.current?.setSelectionRange(codeInput.length, codeInput.length);
@@ -43,8 +50,10 @@ export const JoinOperationScreen = ({
     <div
       className="relative flex min-h-screen w-full flex-col overflow-hidden bg-[#050507] font-sans text-slate-50 selection:bg-red-500/30"
       onPointerDownCapture={(event) => {
-        if (!event.target.closest("[data-join-focus-exempt='true']")) {
-          refocusInput();
+        if (event.target.closest("[data-join-focus-exempt='true']")) {
+          // Flag that the upcoming onBlur should not refocus the input,
+          // so the exempt element's click handler can actually fire.
+          skipRefocusRef.current = true;
         }
       }}
     >
@@ -137,11 +146,7 @@ export const JoinOperationScreen = ({
               ref={inputRef}
               value={codeInput}
               data-join-focus-exempt="true"
-              onBlur={(event) => {
-                if (!event.relatedTarget?.closest?.("[data-join-focus-exempt='true']")) {
-                  refocusInput();
-                }
-              }}
+              onBlur={refocusInput}
               onChange={(event) => onCodeChange(event.target.value)}
               maxLength={4}
               className="w-full rounded-xl border border-white/10 bg-black/60 px-4 py-3 text-center text-lg font-black uppercase tracking-[0.5em] text-white outline-none transition focus:border-red-500/50 focus:bg-black"

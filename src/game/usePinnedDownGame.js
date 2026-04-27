@@ -36,6 +36,10 @@ export function usePinnedDownGame(profile) {
   const manualCloseRef = useRef(false);
   const sessionRef = useRef(getStoredSession());
   const lastStoredResultRef = useRef(null);
+  // True while we're waiting for a response to an automatic session-reconnect
+  // attempt (page load or post-disconnect retry). Errors during this window are
+  // swallowed so stale localStorage sessions don't surface confusing banners.
+  const autoReconnectRef = useRef(false);
 
   const closeSocket = () => {
     if (socketRef.current) {
@@ -83,11 +87,21 @@ export function usePinnedDownGame(profile) {
       setIsBusy(false);
 
       if (payload.type === MESSAGE_TYPES.ERROR) {
+        const wasAutoReconnect = autoReconnectRef.current;
+        autoReconnectRef.current = false;
+        if (wasAutoReconnect) {
+          // Stale session from a server restart — clear it silently
+          clearSession();
+          sessionRef.current = null;
+          setConnectionState(CONNECTION_STATES.IDLE);
+          return;
+        }
         setErrorMessage(payload.error.message);
         return;
       }
 
       if (payload.room) {
+        autoReconnectRef.current = false;
         setRoom(payload.room);
         setEntryView("menu");
         setErrorMessage("");
@@ -128,6 +142,7 @@ export function usePinnedDownGame(profile) {
       setConnectionState(CONNECTION_STATES.OFFLINE);
       reconnectTimerRef.current = window.setTimeout(() => {
         openSocket(() => {
+          autoReconnectRef.current = true;
           sendMessage({
             type: MESSAGE_TYPES.ROOM_JOIN,
             roomCode: session.roomCode,
@@ -214,6 +229,7 @@ export function usePinnedDownGame(profile) {
     }
 
     openSocket(() => {
+      autoReconnectRef.current = true;
       sendMessage({
         type: MESSAGE_TYPES.ROOM_JOIN,
         roomCode: session.roomCode,
