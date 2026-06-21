@@ -1,4 +1,4 @@
-# HCI Prototype
+# PINNED DOWN
 
 This project is a prototype built using Vite, React, and TailwindCSS.
 
