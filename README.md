@@ -1,6 +1,6 @@
 # PINNED DOWN
 
-This project is a prototype built using Vite, React, and TailwindCSS.
+This is a playable prototype built using Vite, React, and TailwindCSS. You can play it at [https://pinned-down.onrender.com/](https://pinned-down.onrender.com/) or run it yourself with the instructions below.
 
 ## Getting Started
 
@@ -16,7 +16,7 @@ Make sure you have the following installed on your system:
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/j-alsereidi/pinned-down
    ```
 
 2. Navigate to the project directory:
@@ -28,6 +28,9 @@ Make sure you have the following installed on your system:
    ```bash
    npm install
    ```
+
+4. Provide a Google Maps API key
+   Rename .env.example to .env and add your API key to it
 
 ### Running the Development Server
 

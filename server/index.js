@@ -3,6 +3,7 @@ import path from "node:path";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import { WebSocket, WebSocketServer } from "ws";
+import worldCountries from "world-countries";
 import { ERROR_CODES, createErrorPayload } from "../shared/contracts.js";
 import { MATCH_PHASES, MESSAGE_TYPES, RECONNECT_TIMEOUT_MS } from "../shared/constants.js";
 import {
@@ -25,9 +26,7 @@ const port = Number(process.env.PORT ?? 8787);
 const rooms = new Map();
 const socketSessions = new Map();
 const reconnectTimers = new Map();
-const COUNTRIES_URL = "https://restcountries.com/v3.1/all?fields=name,cca2,latlng,capital,region,subregion,flags";
 let countriesCache = null;
-let countriesPromise = null;
 
 const contentTypes = {
   ".css": "text/css; charset=utf-8",
@@ -47,37 +46,18 @@ function normalizeCountry(country) {
     capital: country.capital?.[0] ?? "",
     region: country.region ?? "",
     subregion: country.subregion ?? "",
-    flag: country.flags?.svg ?? "",
+    flag: country.cca2 ? `https://flagcdn.com/${country.cca2.toLowerCase()}.svg` : "",
   };
 }
 
 async function getCountries() {
-  if (countriesCache) {
-    return countriesCache;
+  if (!countriesCache) {
+    countriesCache = worldCountries
+      .map(normalizeCountry)
+      .filter((country) => country.code && !Number.isNaN(country.lat) && !Number.isNaN(country.lng))
+      .sort((left, right) => left.name.localeCompare(right.name));
   }
-
-  if (countriesPromise) {
-    return countriesPromise;
-  }
-
-  countriesPromise = fetch(COUNTRIES_URL)
-    .then(async (response) => {
-      if (!response.ok) {
-        throw new Error(`Country list request failed with ${response.status}`);
-      }
-
-      const payload = await response.json();
-      countriesCache = payload
-        .map(normalizeCountry)
-        .filter((country) => country.code && !Number.isNaN(country.lat) && !Number.isNaN(country.lng))
-        .sort((left, right) => left.name.localeCompare(right.name));
-      return countriesCache;
-    })
-    .finally(() => {
-      countriesPromise = null;
-    });
-
-  return countriesPromise;
+  return countriesCache;
 }
 
 async function getCountryLookup() {
